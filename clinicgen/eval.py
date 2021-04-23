@@ -152,7 +152,7 @@ class EntityMatcher:
                 try:
                     # print('current rid: ',rid) # ...
                     # print('current type rid: ',type(rid)) # tenser
-                    rid = str(rid.item())  # .split(self.ID_SEPARATOR)[0])
+                    rid = str(rid)  # .split(self.ID_SEPARATOR)[0])
                 except:
                     raise Exception('rid {} has issue'.format(rid))
 
@@ -181,7 +181,7 @@ class EntityMatcher:
             try:
                 # print('current rid: ',rid) # ...
                 # print('current type rid: ',type(rid)) # tenser
-                rid = str(rid.item())  # .split(self.ID_SEPARATOR)[0])
+                rid = str(rid)  # .split(self.ID_SEPARATOR)[0])
             except:
                 raise Exception('rid {} has issue on Calculate scores stage'.format(rid))
             ref_entities = self.entities[rid]
