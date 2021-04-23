@@ -83,7 +83,7 @@ class IUXRAYData(_RadiologyReportData):
                 if split is None or split == row['split']:  # split
                     did = row['id']  # dicom_id  #not used
                     sid = row['id']  # study_id #edited
-                    pid = row['subject_id']  # subject_id -> patient_id  #not used later
+                    pid = row['id']  # subject_id -> patient_id  #not used 
                     self.ids.append(did) #not used
                     self.doc_ids.append(sid)
 
