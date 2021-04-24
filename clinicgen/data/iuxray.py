@@ -69,7 +69,7 @@ class IUXRAYData(_RadiologyReportData):
 
         sections = {}
         for row in self.texts:
-            study_id = 's' + str(row['id']) #edited
+            study_id = str(row['id']) #edited
             report = {'report': row['report']}
             sections[study_id] = gzip.compress(pickle.dumps(report))  # ? assume row[0] is the study_id
         # assume done
