@@ -7,7 +7,7 @@ from clinicgen.data.chexpert import CheXpertData
 from clinicgen.data.flickr30k import Flickr30kData
 from clinicgen.data.mimiccxr import MIMICCXRData
 from clinicgen.data.openi import OpenIData
-from clinicgen.data.mimiccxr import IUXRAYData
+from clinicgen.data.iuxray import IUXRAYData
 
 
 class Data:
