@@ -168,8 +168,8 @@ class EntityMatcher:
                 # raise Exception('breakpointt in eval.py')
             _, _, _, stats = self.nli.sentence_scores_bert_score(texts1, texts2, label='all', prf=self.prf)
             for i in range(len(rids)):
-                #edit
-                rid, rs = rids, stats[i]
+                #edit. modification: make rids support the list operation.
+                rid, rs = rids[i], stats[i]
                 ref_nli[i] = {}
                 for sid, tup in rs['scores'][0].items():
                     pred, _ = self._nli_label(tup[0])
