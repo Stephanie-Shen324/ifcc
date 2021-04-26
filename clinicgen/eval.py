@@ -104,6 +104,8 @@ class EntityMatcher:
         hypo_sents = {}
         hypos_entities = {}
         texts, buf = [], []
+        if not isinstance(rids, list): # modification: cast rid to list
+            rids = [rids]
         for hypo in hypos:
             buf.append(hypo)
             if len(buf) >= self.batch:
@@ -151,11 +153,13 @@ class EntityMatcher:
                 # print('self.sentences',self.sentences)
                 try:
                     # print('current rid: ',rid) # ...
-                    # print('current type rid: ',type(rid)) # tenser
-                    rid = str(rid)  # .split(self.ID_SEPARATOR)[0])
+                    # print('current type rid: ',type(rid)) # tenser if mimic; str if iu xray
+                    if isinstance(rid, str):  # modification: cast rid to list
+                        rid = str(rid) # .split(self.ID_SEPARATOR)[0]) # edit
+                    else:
+                        rid = str(rid.item()) # .split(self.ID_SEPARATOR)[0]) # edit
                 except:
-                    raise Exception('rid {} has issue'.format(rid))
-
+                    raise Exception('rid {} has issue. Type: {}'.format(rid, type(rid)))
                 for sid in sorted(self.sentences[rid].keys()):
                     buf.append(self.sentences[rid][sid])
                 texts1.append('\n'.join(buf))
@@ -181,10 +185,13 @@ class EntityMatcher:
             # rid = rid.split(self.ID_SEPARATOR)[0]
             try:
                 # print('current rid: ',rid) # ...
-                # print('current type rid: ',type(rid)) # tenser
-                rid = str(rid)  # .split(self.ID_SEPARATOR)[0])
+                # print('current type rid: ',type(rid)) # tenser if mimic; str if iu xray
+                if isinstance(rid, str):  # modification: cast rid to list
+                    rid = str(rid)  # .split(self.ID_SEPARATOR)[0]) # edit
+                else:
+                    rid = str(rid.item())  # .split(self.ID_SEPARATOR)[0]) # edit
             except:
-                raise Exception('rid {} has issue on Calculate scores stage'.format(rid))
+                raise Exception('rid {} , type :{} :has issue on Calculate scores stage'.format(rid, type(rid)))
             ref_entities = self.entities[rid]
             # precision
             match_e, match_n, total_pr = 0, 0, 0

@@ -99,7 +99,7 @@ class Data:
                                             cache_image=cache, cache_text=True, multi_image=multi_image,
                                             img_mode=img_mode, single_image_doc=single_test, dump_dir=test_dump,
                                             filter_reports=filter_reports)
-        #Edit
+        #Edit Modification: add iu-xray
         elif corpus == 'iu-xray':
             if not test_only:
                 target_transform = IUXRAYData.get_target_transform(word_indexes, 'train', sentsplitter, tokenizer,
