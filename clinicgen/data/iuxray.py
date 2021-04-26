@@ -34,12 +34,6 @@ class IUXRAYData(_RadiologyReportData):
     SECTIONED_PATH = 'mimic_cxr_sectioned.csv.gz'
     SPLITS_PATH = 'mimic-cxr-2.0.0-split.csv.gz'
 
-    annotation = json.loads(open('/content/iu_xray_resized/annotation.json', 'r').read())
-    texts_train = annotation['train']
-    texts_val = annotation['val']
-    texts_test = annotation['test']
-    texts = texts_train + texts_val + texts_test
-
     def __init__(self, root, section='findings', split=None, target_transform=None, cache_image=False, cache_text=True,
                  multi_image=1, img_mode='center', img_augment=False, single_image_doc=False, dump_dir=None,
                  filter_reports=True):
@@ -50,6 +44,12 @@ class IUXRAYData(_RadiologyReportData):
         pre_transform, self.transform = IUXRAYData.get_transform(cache_image, img_mode, img_augment)
         self.target_transform = target_transform
         self.chexpert_labels_path = os.path.join(root, 'mimic-cxr-jpg', '2.0.0', self.CHEXPERT_PATH)
+
+        annotation = json.loads(open('/content/iu_xray_resized/annotation.json', 'r').read())
+        texts_train = annotation['train']
+        texts_val = annotation['val']
+        texts_test = annotation['test']
+        self.texts = texts_train + texts_val + texts_test
 
         self.view_positions = {}
 

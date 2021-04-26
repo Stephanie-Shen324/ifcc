@@ -104,8 +104,6 @@ class EntityMatcher:
         hypo_sents = {}
         hypos_entities = {}
         texts, buf = [], []
-        if not isinstance(rids, list): # modification: cast rid to list
-            rids = [rids]
         for hypo in hypos:
             buf.append(hypo)
             if len(buf) >= self.batch:
