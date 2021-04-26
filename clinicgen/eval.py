@@ -104,8 +104,6 @@ class EntityMatcher:
         hypo_sents = {}
         hypos_entities = {}
         texts, buf = [], []
-        if not isinstance(rids, list): # modification: cast rid to list
-            rids = [rids]
         for hypo in hypos:
             buf.append(hypo)
             if len(buf) >= self.batch:
@@ -168,8 +166,8 @@ class EntityMatcher:
                 # raise Exception('breakpointt in eval.py')
             _, _, _, stats = self.nli.sentence_scores_bert_score(texts1, texts2, label='all', prf=self.prf)
             for i in range(len(rids)):
-                #edit. modification: make rids support the list operation.
-                rid, rs = rids[i], stats[i]
+                #edit. modification: ignore the rid since wont be used
+                rs = stats[i]
                 ref_nli[i] = {}
                 for sid, tup in rs['scores'][0].items():
                     pred, _ = self._nli_label(tup[0])
