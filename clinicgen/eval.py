@@ -577,7 +577,7 @@ class GenEval:
             for hid in ids:
                 hypos_l.append(self.nli_rewrite(hypos[hid][0]))
             t = time.time()
-            mse, sde, msn, sdn = self.entity_matcher.score(refs, hypos_l)
+            mse, sde, msn, sdn = self.entity_matcher.score(ref_ids, hypos_l)
             if self.verbose:
                 print('Entity match {0} pairs: {1}s'.format(len(ids), time.time() - t))
             scores.append(mse)

@@ -73,6 +73,7 @@ class Data:
             target_transform = Flickr30kData.get_target_transform(word_indexes, 'validation', sentsplitter, tokenizer,
                                                                   textfilter, tokenfilter, max_sent, max_word)
             datasets['validation'] = Flickr30kData(path, meta=meta, split='val', target_transform=target_transform,
+                                                   cache_image=cache, img_mode=img_mode, cache_text=cache,
                                                    dump_dir=val_dump)
             target_transform = Flickr30kData.get_target_transform(word_indexes, 'test', sentsplitter, tokenizer,
                                                                   textfilter, tokenfilter, max_sent, max_word)
