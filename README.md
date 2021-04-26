@@ -92,5 +92,26 @@ Serving TensorBoard on localhost; to expose to the network, use a proxy or pass 
 TensorBoard 2.0.0 at http://localhost:6006/ (Press CTRL+C to quit)
 ```
 
+
+## Modification from the original code
+In this project we mainly modify the code as two reasons.
+First we would like to make the model support customized mimic-cxr-jpg dataset since we have no access to the official dataset yet. 
+Second is that we would like to fit the model with IU XRAY dataset.
+The modified py files are showed as below:
+```
+train.py 
+train_images.py
+clinicgen/eval.py 
+clinicgen/utils.py
+clinicgen/data/mimiccxr.py
+clinicgen/data/iuxray.py
+```
+Followed the original IFCC author, we hard code the number of used images in *clinicgen/data/mimiccxr.py* and *clinicgen/data/iuxray.py* at the beginning of these files. If you would like to use different dataset, you may modify the numbers
+
+The prject should be able to fit the datasets from below: 
+```
+https://github.com/cuhksz-nlp/R2Gen
+```
+
 ## Licence
 See LICENSE and clinicgen/external/LICENSE_bleu-cider-rouge-spice for details.
