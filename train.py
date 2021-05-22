@@ -91,7 +91,7 @@ def main(args):
                              cnnrnnrnn_simple_proj=args.cnnrnnrnn_simple_proj, sat_lstm_dim=args.sat_lstm_dim,
                              trans_image_pe=args.img_pe, trans_layers=args.trans_layers,
                              trans_enc_layers=args.trans_enc_layers, trans_layer_norm=args.trans_layer_norm,
-                             m2_memory=args.m2_memory, tienet_labels=args.tienet_labels, verbose=args.verbose)
+                             m2_memory=args.m2_memory, tienet_labels=args.tienet_labels, verbose=args.verbose,cls_pretrained=args.cls_pretrained)
     if device == 'gpu':
         model = model.cuda()
     optimizers, schedulers, batch_schedulers = Optimizers.get_optmizers(model, args.lr, args.lr_img, args.lr_step,
@@ -187,6 +187,7 @@ def parse_args():
     parser.add_argument('--cnnrnnrnn-mlp-proj', dest='cnnrnnrnn_simple_proj', default=True, action='store_false', help='An MLP visual feature projection for CNNRNNRNN')
     parser.add_argument('--cnnrnnrnn-topic-state', default=False, action='store_true', help='Use topic as an initial word LSTM state')
     #edit
+    parser.add_argument('--cls-pretrained', type=str, default='./models/gcnclassifier_v2_ones3_t0v1t2_lr1e-6_e60.pth')
     parser.add_argument('--corpus', type=str, default='a', choices=['a', 'flickr30k', 'mimic-cxr', 'open-i','iu-xray'], help='Corpus name')
     parser.add_argument('--cuda', default=False, action='store_true', help='Use GPU')
     parser.add_argument('--entity-match', type=str, default=None, help='A path to reference entities')

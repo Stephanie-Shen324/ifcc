@@ -3,6 +3,7 @@
 
 import warnings
 import torch
+import os
 from torch import sigmoid
 from torch.nn import Dropout, LayerNorm, Linear, Module
 from torch.nn.functional import dropout, linear, relu, softmax
@@ -11,6 +12,7 @@ from torch.nn.modules.activation import MultiheadAttention
 from torch.nn.modules.transformer import _get_activation_fn, TransformerDecoderLayer, TransformerDecoder, TransformerEncoder
 from torch.nn.parameter import Parameter
 from clinicgen.models.transformer import _TransformerCaptioner
+from clinicgen.models.gcnclassifier import GCNClassifier
 
 
 class MeshedTransformerEncoder(TransformerEncoder):
@@ -341,7 +343,7 @@ class M2Transformer(_TransformerCaptioner):
     def __init__(self, embeddings, feat_dim=512, max_word=32, multi_image=1, layer_norm=False, num_memory=40,
                  num_enc_layers=6, num_dec_layers=6, teacher_forcing=False, image_model=None, image_pretrained=None,
                  finetune_image=False, image_finetune_epoch=None, rl_opts=None, word_idxs=None, device='gpu',
-                 verbose=False):
+                 verbose=False,cls_pretrained=None):
         super(M2Transformer, self).__init__(embeddings, feat_dim, max_word, multi_image, False, layer_norm,
                                             teacher_forcing, image_model, image_pretrained, finetune_image,
                                             image_finetune_epoch, rl_opts, word_idxs, device, verbose)
@@ -351,6 +353,14 @@ class M2Transformer(_TransformerCaptioner):
         # Transformer Decoder
         decoder_layer = MeshedTransformerMaxDecoderLayer(feat_dim, nhead=8, nlayer_enc=num_enc_layers)
         self.decoder = TransformerDecoder(decoder_layer, num_layers=num_dec_layers)
+        self.gcncls = GCNClassifier()
+        if cls_pretrained is not None and os.path.exists(cls_pretrained):
+            pretrained = torch.load(cls_pretrained)
+            pretrained_state_dict = pretrained['model_state_dict']
+            state_dict = self.gcncls.state_dict()
+            state_dict.update({k: v for k, v in pretrained_state_dict.items() if k in state_dict and 'fc' not in k})
+            self.gcncls.load_state_dict(state_dict)
+            print('load pretrained classifier model from {} successfully!'.format(cls_pretrained))
 
     def decode_beam(self, encoded_data, beam_size, allow_stop=True, recover_words=None, diversity_rate=0.0):
         return super(M2Transformer, self).decode_beam(encoded_data, beam_size, allow_stop, recover_words,
@@ -379,10 +389,19 @@ class M2Transformer(_TransformerCaptioner):
                 x_nz = x_nz.unsqueeze(dim=0)
         else:
             x_nz, nz = x, None
+        #GCN
+        cnn_feats,node_states,global_states = self.gcncls(x_nz)
+
+
         # Image features
-        x_nz = model(x_nz)
+        # x_nz = model(x_nz)
+        x_nz = cnn_feats
         x_nz = x_nz.flatten(start_dim=-2, end_dim=-1)
         x_nz = x_nz.permute(0, 2, 1)
+
+        # concat cnn and gcn feats
+        x_nz= torch.cat((x_nz, node_states), dim=1)
+
         x_nz = relu(self.image_proj_l(x_nz))
         x_nz = self.dropout(x_nz)
         if self.layer_norm is not None:
