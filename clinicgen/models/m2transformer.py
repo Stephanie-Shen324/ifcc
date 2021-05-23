@@ -343,7 +343,7 @@ class M2Transformer(_TransformerCaptioner):
     def __init__(self, embeddings, feat_dim=512, max_word=32, multi_image=1, layer_norm=False, num_memory=40,
                  num_enc_layers=6, num_dec_layers=6, teacher_forcing=False, image_model=None, image_pretrained=None,
                  finetune_image=False, image_finetune_epoch=None, rl_opts=None, word_idxs=None, device='gpu',
-                 verbose=False,cls_pretrained=None):
+                 verbose=False,cls_pretrained=None,kg_dir=None):
         super(M2Transformer, self).__init__(embeddings, feat_dim, max_word, multi_image, False, layer_norm,
                                             teacher_forcing, image_model, image_pretrained, finetune_image,
                                             image_finetune_epoch, rl_opts, word_idxs, device, verbose)
@@ -353,7 +353,7 @@ class M2Transformer(_TransformerCaptioner):
         # Transformer Decoder
         decoder_layer = MeshedTransformerMaxDecoderLayer(feat_dim, nhead=8, nlayer_enc=num_enc_layers)
         self.decoder = TransformerDecoder(decoder_layer, num_layers=num_dec_layers)
-        self.gcncls = GCNClassifier()
+        self.gcncls = GCNClassifier(kg_dir=kg_dir)
         if cls_pretrained is not None and os.path.exists(cls_pretrained):
             pretrained = torch.load(cls_pretrained)
             pretrained_state_dict = pretrained['model_state_dict']
