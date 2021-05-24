@@ -13,6 +13,7 @@ from torch.nn.modules.transformer import _get_activation_fn, TransformerDecoderL
 from torch.nn.parameter import Parameter
 from clinicgen.models.transformer import _TransformerCaptioner
 from clinicgen.models.gcnclassifier import GCNClassifier
+import random
 
 
 class MeshedTransformerEncoder(TransformerEncoder):
@@ -353,7 +354,7 @@ class M2Transformer(_TransformerCaptioner):
         # Transformer Decoder
         decoder_layer = MeshedTransformerMaxDecoderLayer(feat_dim, nhead=8, nlayer_enc=num_enc_layers)
         self.decoder = TransformerDecoder(decoder_layer, num_layers=num_dec_layers)
-        self.gcncls = GCNClassifier(kg_dir=kg_dir)
+        self.gcncls = GCNClassifier(kg_dir=kg_dir) #edit
         if cls_pretrained is not None and os.path.exists(cls_pretrained):
             pretrained = torch.load(cls_pretrained)
             pretrained_state_dict = pretrained['model_state_dict']
@@ -389,21 +390,36 @@ class M2Transformer(_TransformerCaptioner):
                 x_nz = x_nz.unsqueeze(dim=0)
         else:
             x_nz, nz = x, None
-        #GCN
-        cnn_feats,node_states,global_states = self.gcncls(x_nz)
 
+        batch_size = int(x.shape[0]/self.multi_image)
+        remain_img_num = int(x_nz.shape[0]/batch_size)
+
+        cnn_feats_comb = []
+        node_states_comb = []
+        global_states_comb = []
+        img_list = [i for i in range(remain_img_num)]
+        random.shuffle(img_list)
+        for i in img_list:
+            #GCN
+            cnn_feats,node_states,global_states = self.gcncls(x_nz[i*batch_size:(i+1)*batch_size])
+            cnn_feats_comb.append(cnn_feats)
+            node_states_comb.append(node_states)
+            global_states_comb.append(global_states.unsqueeze(1))
+        cnn_feats_comb=torch.cat(cnn_feats_comb, dim=0)
+        node_states_comb= torch.cat(node_states_comb, dim=0)
+        global_states_comb= torch.cat(global_states_comb, dim=0)
 
         # Image features
         # x_nz = model(x_nz)
-        x_nz = cnn_feats
-        x_nz = x_nz.flatten(start_dim=-2, end_dim=-1)
-        x_nz = x_nz.permute(0, 2, 1)
+        # x_nz = cnn_feats_comb
+        # x_nz = x_nz.flatten(start_dim=-2, end_dim=-1)
+        # x_nz = x_nz.permute(0, 2, 1)
 
         # # concat cnn and gcn feats
         # x_nz= torch.cat((x_nz, node_states), dim=1)
 
         # use gcn only
-        x_nz=torch.cat((global_states.unsqueeze(1), node_states), dim=1)
+        x_nz=torch.cat((global_states_comb, node_states_comb), dim=1)
 
         x_nz = relu(self.image_proj_l(x_nz))
         x_nz = self.dropout(x_nz)

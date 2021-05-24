@@ -137,11 +137,13 @@ class GCNClassifier(nn.Module):
         fw_A = self.fw_A.repeat(batch_size, 1, 1)
         bw_A = self.bw_A.repeat(batch_size, 1, 1)
         cnn_feats = self.densenet121.features(img)
+        cnn_feats_deal = cnn_feats.flatten(start_dim=-2, end_dim=-1)
+        cnn_feats_deal = cnn_feats_deal.permute(0, 2, 1)
+
         global_feats = cnn_feats.mean(dim=(2, 3))
         cls_feats = self.cls_atten(cnn_feats)
         node_feats = torch.cat((global_feats.unsqueeze(1), cls_feats), dim=1)
         node_states = self.gcn(node_feats, fw_A, bw_A)
-
         global_states = node_states.mean(dim=1)
         # logits = self.fc2(global_states)
-        return cnn_feats,node_states,global_states
+        return cnn_feats_deal,node_states,global_states

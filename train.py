@@ -216,7 +216,7 @@ def parse_args():
     parser.add_argument('--max-word', type=int, default=128, help='Max word num')
     parser.add_argument('--model', type=str, default='m2trans', choices=['cnnrnnrnn', 'kwl', 'm2trans', 'sat', 'tienet', 'trans', 'trans-s'])
     parser.add_argument('--model-save', type=str, default=None, help='A model save path')
-    parser.add_argument('--multi-image', type=int, default=3, help='Multi image number')
+    parser.add_argument('--multi-image', type=int, default=2, help='Multi image number')
     parser.add_argument('--multi-merge', type=str, default='max', choices=['att', 'max'], help='A merge method for multi images')
     parser.add_argument('--nli', type=str, default=None, choices=['mednli', 'mednli-rad'], help='NLI model type')
     parser.add_argument('--nli-batch', type=int, default=24, help='NLI batch size')

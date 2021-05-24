@@ -120,8 +120,8 @@ class _CaptioningData(data.Dataset):
                 elif len(sample) < self.multi_image:
                     first_sample = sample[0]
                     for _ in range(self.multi_image - len(sample)):
-                        # sample.append(first_sample.new_zeros(first_sample.size()))
-                        sample.append(first_sample) #edit, Fill with the first picture
+                        sample.append(first_sample.new_zeros(first_sample.size()))
+                        # sample.append(first_sample) #edit, Fill with the first picture
                 sample = torch.cat(sample, dim=0)
             else:
                 sample = sample[0]
