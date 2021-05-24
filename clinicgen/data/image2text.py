@@ -120,7 +120,8 @@ class _CaptioningData(data.Dataset):
                 elif len(sample) < self.multi_image:
                     first_sample = sample[0]
                     for _ in range(self.multi_image - len(sample)):
-                        sample.append(first_sample.new_zeros(first_sample.size()))
+                        # sample.append(first_sample.new_zeros(first_sample.size()))
+                        sample.append(first_sample) #edit, Fill with the first picture
                 sample = torch.cat(sample, dim=0)
             else:
                 sample = sample[0]
@@ -269,7 +270,7 @@ class _RadiologyReportData(_CaptioningData):
             else:
                 new_ids.append(doc_id)
                 image_ids.append([iid])
-                new_samples.append(([image], report))
+                new_samples.append((image, report))
                 new_targets.append(report)
                 n += 1
             buffer = doc_id
