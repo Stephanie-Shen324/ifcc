@@ -45,7 +45,7 @@ class IUXRAYData(_RadiologyReportData):
         self.target_transform = target_transform
         self.chexpert_labels_path = os.path.join(root, 'mimic-cxr-jpg', '2.0.0', self.CHEXPERT_PATH)
 
-        annotation = json.loads(open('./iu_xray_resized/annotation.json', 'r').read())
+        annotation = json.loads(open(os.path.join(root, 'annotation.json'), 'r').read())
         texts_train = annotation['train']
         texts_val = annotation['val']
         texts_test = annotation['test']
