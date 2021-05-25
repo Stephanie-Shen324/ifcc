@@ -211,6 +211,8 @@ class _CaptioningData(data.Dataset):
                     raise ValueError('sample-target mismatch in {0}'.format(i))
                 text = self.extract_section(text)
                 text = target_transform(text)
+                if isinstance(image, str):
+                    image = [image]
                 self.samples[i] = (image, text)
                 self.targets[i] = text
             self.target_transform.pre_processed = True
