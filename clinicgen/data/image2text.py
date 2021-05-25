@@ -268,7 +268,9 @@ class _RadiologyReportData(_CaptioningData):
                 image_ids[-1].append(iid)
                 new_samples[-1][0].append(image)
             else:
-                if isinstance(image, str):
+                if isinstance(image, list):
+                    pass
+                else:
                     image = [image]
                 new_ids.append(doc_id)
                 image_ids.append([iid])
