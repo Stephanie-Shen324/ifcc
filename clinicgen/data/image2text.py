@@ -211,8 +211,6 @@ class _CaptioningData(data.Dataset):
                     raise ValueError('sample-target mismatch in {0}'.format(i))
                 text = self.extract_section(text)
                 text = target_transform(text)
-                if isinstance(image, str):
-                    image = [image]
                 self.samples[i] = (image, text)
                 self.targets[i] = text
             self.target_transform.pre_processed = True
@@ -270,6 +268,8 @@ class _RadiologyReportData(_CaptioningData):
                 image_ids[-1].append(iid)
                 new_samples[-1][0].append(image)
             else:
+                if isinstance(image, str):
+                    image = [image]
                 new_ids.append(doc_id)
                 image_ids.append([iid])
                 new_samples.append((image, report))
