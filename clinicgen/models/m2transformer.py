@@ -415,11 +415,11 @@ class M2Transformer(_TransformerCaptioner):
         # x_nz = x_nz.flatten(start_dim=-2, end_dim=-1)
         # x_nz = x_nz.permute(0, 2, 1)
 
-        # # concat cnn and gcn feats
-        # x_nz = torch.cat((cnn_feats_comb, node_states_comb), dim=1)
+        # concat cnn and gcn feats
+        x_nz = torch.cat((cnn_feats_comb, node_states_comb), dim=1)
 
-        # use gcn
-        x_nz=torch.cat((global_states_comb, node_states_comb), dim=1)
+        # # use gcn
+        # x_nz=torch.cat((global_states_comb, node_states_comb), dim=1)
 
         x_nz = relu(self.image_proj_l(x_nz))
         x_nz = self.dropout(x_nz)
