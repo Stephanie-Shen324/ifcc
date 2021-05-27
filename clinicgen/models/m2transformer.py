@@ -445,7 +445,8 @@ class M2Transformer(_TransformerCaptioner):
             node_states_comb = self.layer_norm(node_states_comb)
         node_states_comb = node_states_comb.permute(1, 0, 2)
         # Transformer encoder
-        x_nz = self.encoder(node_feats_comb,node_states_comb)
+        # x_nz = self.encoder(node_feats_comb, node_states_comb)  # make cnn as q, gcn as k,v
+        x_nz = self.encoder(node_states_comb,node_states_comb)  # only gcn
         x_nz = x_nz.permute(1, 2, 0, 3)
         xms = []
         if self.multi_image > 1:
