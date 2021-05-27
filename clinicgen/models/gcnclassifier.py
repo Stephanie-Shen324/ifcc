@@ -146,4 +146,4 @@ class GCNClassifier(nn.Module):
         node_states = self.gcn(node_feats, fw_A, bw_A)
         global_states = node_states.mean(dim=1)
         # logits = self.fc2(global_states)
-        return cnn_feats_deal,node_states,global_states
+        return cnn_feats_deal,node_feats, node_states,global_states
