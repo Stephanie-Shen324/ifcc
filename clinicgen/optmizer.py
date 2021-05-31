@@ -3,7 +3,7 @@
 
 from torch.optim import Adam
 from torch.optim.lr_scheduler import _LRScheduler, StepLR
-
+from torch_optimizer import AdaBound
 
 class Optimizers:
     IMAGE = 'image'
@@ -20,7 +20,8 @@ class Optimizers:
             batch_schedulers = {cls.TEXT: TransformerScheduler(optimizer, d_train, steps_per_epoch, warmup)}
         else:
             if lr_img is None or lr == lr_img:
-                optimizers = {cls.TEXT: Adam(model.parameters(), lr=lr, betas=(beta1, beta2))}
+                # optimizers = {cls.TEXT: Adam(model.parameters(), lr=lr, betas=(beta1, beta2))}
+                optimizers = {cls.TEXT: AdaBound(model.parameters(), lr=lr, betas=(beta1, beta2))}
                 schedulers = {cls.TEXT: StepLR(optimizers[cls.TEXT], lr_step, lr_decay_rate)}
             else:
                 if lr_img is None:
@@ -31,8 +32,10 @@ class Optimizers:
                         img_params.append(param)
                     else:
                         text_params.append(param)
-                optimizers = {cls.TEXT: Adam(text_params, lr=lr, betas=(beta1, beta2)),
-                              cls.IMAGE: Adam(img_params, lr=lr_img, betas=(beta1, beta2))}
+                # optimizers = {cls.TEXT: Adam(text_params, lr=lr, betas=(beta1, beta2)),
+                #               cls.IMAGE: Adam(img_params, lr=lr_img, betas=(beta1, beta2))}
+                optimizers = {cls.TEXT: AdaBound(text_params, lr=lr, betas=(beta1, beta2)),
+                              cls.IMAGE: AdaBound(img_params, lr=lr_img, betas=(beta1, beta2))}
                 schedulers = {cls.TEXT: StepLR(optimizers[cls.TEXT], lr_step, lr_decay_rate),
                               cls.IMAGE: StepLR(optimizers[cls.IMAGE], lr_step, lr_decay_rate)}
             batch_schedulers = None
