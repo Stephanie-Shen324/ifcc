@@ -160,8 +160,10 @@ def main(args):
                 # Epoch end processes
                 for _, scheduler in schedulers.items():
                     scheduler.step()
+                    print('lr----', scheduler.get_last_lr()[0])
                 if scheduler_tfr is not None:
                     scheduler_tfr.step()
+                    print('scheduler_tfr lr----', scheduler_tfr.get_last_lr()[0])
                 pbar_vals = EpochLog.log_datasets(logger, pbar_vals, epoch, data_n, epoch_loss, val_loader, test_loader,
                                                   save=args.log_models, progress=True)
                 logger.save_current_model(epoch)
