@@ -400,7 +400,6 @@ class M2Transformer(_TransformerCaptioner):
         global_states_comb = []
         img_list = [i for i in range(remain_img_num)]
         if train == True:  #edit: if train, shuffle
-            print('train, shuffle')
             random.shuffle(img_list)
         for i in img_list:
             #GCN
