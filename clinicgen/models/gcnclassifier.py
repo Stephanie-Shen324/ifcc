@@ -93,7 +93,7 @@ class GCN(nn.Module):
         states = states.permute(0, 2, 1)
         states = self.layer1(states, fw_A, bw_A)
         states = self.layer2(states, fw_A, bw_A)
-        states = self.layer3(states, fw_A, bw_A)
+        # states = self.layer3(states, fw_A, bw_A)
         return states.permute(0, 2, 1)
 
 
