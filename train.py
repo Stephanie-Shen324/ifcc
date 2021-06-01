@@ -157,7 +157,10 @@ def main(args):
                             else:
                                 pbar.update(tqdm_interval)
                             tqdm_interval = tqdm_interval - args.tqdm_interval if args.tqdm_interval is not None else 0
+
                 # Epoch end processes
+                for _, batch_scheduler in batch_schedulers.items():
+                    print('batch_last_lr----', batch_scheduler.get_last_lr()[0])
                 for _, scheduler in schedulers.items():
                     scheduler.step()
                     print('lr----', scheduler.get_last_lr()[0])
