@@ -131,8 +131,8 @@ class _TransformerCaptioner(_Image2Text):
             x = x.view(int(x.shape[0] / self.multi_image), self.multi_image, x.shape[1], x.shape[2])
         return x
 
-    def encode(self, x, meta):
-        return self.encode_image(x)
+    def encode(self, x, meta,train):
+        return self.encode_image(x,train)
 
     def encode_image(self, x):
         # CNN features

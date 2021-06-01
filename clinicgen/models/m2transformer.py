@@ -373,15 +373,15 @@ class M2Transformer(_TransformerCaptioner):
                        x.shape[3])
         return x
 
-    def encode_image(self, x):
+    def encode_image(self, x,train):
         # CNN+Transformer features
         x = self.flatten_image(x)
-        v, _ = self.image_features_with_mask(x, self.image_feats)
+        v, _ = self.image_features_with_mask(x, self.image_feats,train=train)
         # Merge multiple images
         v = self.deflatten_image(v)
         return v
 
-    def image_features_with_mask(self, x, model):
+    def image_features_with_mask(self, x, model,train=True):
         mask = (x.detach().sum(dim=(1, 2, 3)) != 0).type(torch.float).unsqueeze(dim=-1).unsqueeze(dim=-1)
         if self.multi_image > 1:
             nz = mask.squeeze().nonzero().squeeze()
@@ -399,7 +399,9 @@ class M2Transformer(_TransformerCaptioner):
         node_states_comb = []
         global_states_comb = []
         img_list = [i for i in range(remain_img_num)]
-        random.shuffle(img_list)
+        if train == True:  #edit: if train, shuffle
+            print('train, shuffle')
+            random.shuffle(img_list)
         for i in img_list:
             #GCN
             cnn_feats,node_feats,node_states,global_states = self.gcncls(x_nz[i*batch_size:(i+1)*batch_size])

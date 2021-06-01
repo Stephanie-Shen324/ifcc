@@ -138,7 +138,7 @@ def main(args):
                         # Train
                         losses = model.train_step(inp, targ, optimizers, ids=ids, schedulers=batch_schedulers,
                                                   meta=(vp,), clip_grad=args.clip_grad, device=device,
-                                                  non_blocking=train_loader.pin_memory, epoch=epoch + 1)
+                                                  non_blocking=train_loader.pin_memory, epoch=epoch + 1,train=True)
                         epoch_loss = logger.epoch_loss_update(epoch_loss, losses)
                         pbar_vals['losses'] = model.loss_progress(epoch_loss)
                         # Validation / Test

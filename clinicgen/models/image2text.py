@@ -596,7 +596,7 @@ class _Image2Text(torch.nn.Module):
         return rewards, loss_acc
 
     def train_step(self, inp, targ, optimizers, ids=None, schedulers=None, meta=None, clip_grad=None, device='gpu',
-                   non_blocking=False, epoch=None):
+                   non_blocking=False, epoch=None,train=True):
         """
         Process a single training step
         :param inp: Input images
@@ -629,7 +629,7 @@ class _Image2Text(torch.nn.Module):
             if self.optimize(name, epoch, self.image_finetune_epoch):
                 optimizer.zero_grad()
         # Encode data (shared among multiple decoding processes)
-        encoded_data = self.encode(inp, meta)
+        encoded_data = self.encode(inp, meta,train)
         # Decode data (NLL and/or RL)
         for step, weight in steps:
             loss, loss_reward_vals = step(encoded_data, targ, device, non_blocking, ids=ids)

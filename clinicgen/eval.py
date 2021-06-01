@@ -638,7 +638,7 @@ class GenEval:
                 meta = (vp,)
                 meta = self.model.meta_cuda(meta, device=self.device, non_blocking=data_loader.pin_memory)
                 rec_words, _ = self.recover_words if self.verbose else None, None
-                encoded_data = self.model.encode(inp, meta)
+                encoded_data = self.model.encode(inp, meta,train=False)
                 if self.nucleus_p is not None:
                     words = []
                     for _ in range(self.beam_size):
