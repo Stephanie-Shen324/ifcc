@@ -58,6 +58,7 @@ class _TransformerCaptioner(_Image2Text):
             image_model = 'densenet'
         self.image_feats, image_dim = ImageClassification.image_features(image_model, not finetune_image, True,
                                                                          image_pretrained, device)
+        image_dim=2048
         self.image_proj_l = Linear(image_dim, feat_dim)
         image_len = int(math.sqrt(self.VISUAL_NUM))
         self.image_weight = math.sqrt(image_len)
