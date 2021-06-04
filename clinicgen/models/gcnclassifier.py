@@ -112,15 +112,15 @@ class GCNClassifier(nn.Module):
 
         self.num_classes = fw_adj.shape[0]-1  #consider there is a global feature
         #use densnet121
-        # self.densenet121 = models.densenet121(pretrained=True)
-        # feat_size = self.densenet121.classifier.in_features
-        # self.densenet121.classifier = nn.Linear(feat_size, self.num_classes)
+        self.densenet121 = models.densenet121(pretrained=True)
+        feat_size = self.densenet121.classifier.in_features
+        self.densenet121.classifier = nn.Linear(feat_size, self.num_classes)
 
         # use resnet50
-        self.resnet50 = models.resnet50(pretrained=True)
-        feat_size = self.resnet50.fc.in_features
-        self.resnet50.fc = nn.Linear(feat_size, self.num_classes)
-        self.extractor = nn.Sequential(*list(self.resnet50.children())[:-1])
+        # self.resnet50 = models.resnet50(pretrained=True)
+        # feat_size = self.resnet50.fc.in_features
+        # self.resnet50.fc = nn.Linear(feat_size, self.num_classes)
+        # self.extractor = nn.Sequential(*list(self.resnet50.children())[:-1])
 
         self.cls_atten = ClsAttention(feat_size, self.num_classes)
         self.gcn = GCN(feat_size, 256)
@@ -144,8 +144,8 @@ class GCNClassifier(nn.Module):
         batch_size = img.size(0)
         fw_A = self.fw_A.repeat(batch_size, 1, 1)
         bw_A = self.bw_A.repeat(batch_size, 1, 1)
-        # cnn_feats = self.densenet121.features(img) #use densnet121
-        cnn_feats = self.extractor(img)   # use resnet50
+        cnn_feats = self.densenet121.features(img) #use densnet121
+        # cnn_feats = self.extractor(img)   # use resnet50
         cnn_feats_deal = cnn_feats.flatten(start_dim=-2, end_dim=-1)
         cnn_feats_deal = cnn_feats_deal.permute(0, 2, 1)
 
