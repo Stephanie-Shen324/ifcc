@@ -29,7 +29,7 @@ class EpochLog:
             logger.evaluator.cuda()
         for split, data_loader in [('val', val_loader), ('test', test_loader)]:
             prog_name = split if progress else None
-            results[split], refs[split], hypos[split] = logger.evaluator.generate_and_eval(data_loader, prog_name)
+            results[split], refs, hypos = logger.evaluator.generate_and_eval(data_loader, prog_name)
             metric_idxs = logger.pbar_indexes()
             scores = ','.join(['%.2f' % results[split][GenEval.EVAL_SCORE][i] for i in metric_idxs])
             pbar_vals['{0}_scores'.format(split)] = scores
