@@ -67,6 +67,37 @@ $ cd resources
 $ ./download.sh
 ```
 
+## Download KG and Pretrained GCN Classifier model
+### KG on IUXRAY
+#### RGMG's KG
+
+link = '1-q0e7oDDIn419KlMTmGTOZWoMqJTUbpV' \
+downloaded = drive.CreateFile({'id':link}) \
+downloaded.GetContentFile('gcnclassifier_v2_ones3_t401v2t3_lr1e-6_e80.pth') \
+**OR**
+
+link = '10J5VwEmyOM9-I_YHyzpJaALRN36o1No4' \
+downloaded = drive.CreateFile({'id':link})  \
+downloaded.GetContentFile('gcnclassifier_v2_ones3_t0v1t2_lr1e-6_e80.pth') \
+
+
+#### VSEGCN's KG
+
+changes to pretrained gcn download:  \
+link = '1Cd_J2-tFVvRE6dMBfyJsYKW_1HPWtlHx' \
+downloaded = drive.CreateFile({'id':link})  \
+downloaded.GetContentFile('iuxray_gcnclassifier_v1_ones3_t0v1t2_lr1e-6_23050521_e180.pth') \
+
+changes to 'run_iu_xray.sh': \
+--pretrained models/iuxray_gcnclassifier_v1_ones3_t0v1t2_lr1e-6_23050521_e180.pth \
+--kg_option 'vsegcn' \
+
+### KG on MIMIC
+### KG(VSEGCN)
+link = '1_5DhLPDq7bSOgLWLPO7BM-gUySqpiVCK' \
+downloaded = drive.CreateFile({'id':link}) \
+downloaded.GetContentFile('mimic_gcnclassifier_v1_ones3_t0v1t2_lr1e-6_24052021_e10.pth') \
+
 ## Training a Report Generation Model
 First, train the Meshed-Memory Transformer model with an NLL loss.
 ```bash
@@ -105,6 +136,10 @@ clinicgen/eval.py
 clinicgen/utils.py
 clinicgen/data/mimiccxr.py
 clinicgen/data/iuxray.py
+clinicgen/data/utils.py
+clinicgen/models/gcnclassifier.py
+clinicgen/models/m2transformer.py
+clinicgen/optmizer.py
 ```
 Followed the original IFCC author, we hard code the number of used images in *clinicgen/data/mimiccxr.py* and *clinicgen/data/iuxray.py* at the beginning of these files. If you would like to use different dataset, you may modify the numbers
 

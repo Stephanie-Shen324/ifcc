@@ -23,6 +23,7 @@ from clinicgen.log import EpochLog, FileLogger
 from clinicgen.models.image2text import StepTFR
 from clinicgen.models.utils import Models, RLOptions
 from clinicgen.optmizer import Optimizers
+import torch.distributed as dist
 
 
 def main(args):
@@ -39,6 +40,16 @@ def main(args):
     torch.cuda.manual_seed(args.seed)
     torch.backends.cudnn.deterministic = True
     torch.backends.cudnn.benchmark = False
+    # DistributedDataParallel init
+    num_gpus = torch.cuda.device_count()
+    distributed = num_gpus > 1
+    if distributed:
+        torch.cuda.set_device(args.local_rank)
+        torch.distributed.init_process_group(
+            backend="nccl", init_method="env://"
+        )
+
+
     # Embeddings
     embeddings, word_idxs = PretrainedEmbeddings.load_embeddings(args.embeddings)
     # Data
@@ -96,8 +107,18 @@ def main(args):
                              trans_enc_layers=args.trans_enc_layers, trans_layer_norm=args.trans_layer_norm,
                              m2_memory=args.m2_memory, tienet_labels=args.tienet_labels, verbose=args.verbose,
                              cls_pretrained=args.cls_pretrained,kg_dir=args.kg_dir) #edit
-    if device == 'gpu':
-        model = model.cuda()
+
+    if distributed:
+        # this should be removed if we update BatchNorm stats
+        model = torch.nn.parallel.DistributedDataParallel(
+            model.to(device),
+            device_ids=[args.local_rank],
+            output_device=args.local_rank,
+            broadcast_buffers=False
+        )
+    else:
+        if device == 'gpu':
+            model = model.cuda()
     optimizers, schedulers, batch_schedulers = Optimizers.get_optmizers(model, args.lr, args.lr_img, args.lr_step,
                                                                         args.lr_scheduler, args.lr_decay_rate, beta1=args.adam_beta1,
                                                                         beta2=args.adam_beta2, train_steps=train_steps,
@@ -141,6 +162,8 @@ def main(args):
                                                   non_blocking=train_loader.pin_memory, epoch=epoch + 1,train=True)
                         epoch_loss = logger.epoch_loss_update(epoch_loss, losses)
                         pbar_vals['losses'] = model.loss_progress(epoch_loss)
+                        if distributed:
+                            dist.barrier()
                         # Validation / Test
                         data_n += inp.shape[0]
                         eval_interval += inp.shape[0]
@@ -158,6 +181,8 @@ def main(args):
                                 pbar.update(tqdm_interval)
                             tqdm_interval = tqdm_interval - args.tqdm_interval if args.tqdm_interval is not None else 0
 
+                if distributed:
+                    dist.barrier()
                 # Epoch end processes
                 if batch_schedulers is not None:
                     for _, batch_scheduler in batch_schedulers.items():
@@ -196,7 +221,9 @@ def parse_args():
     parser.add_argument('--clip-grad', type=float, default=None, help='Clip gradients')
     parser.add_argument('--cnnrnnrnn-mlp-proj', dest='cnnrnnrnn_simple_proj', default=True, action='store_false', help='An MLP visual feature projection for CNNRNNRNN')
     parser.add_argument('--cnnrnnrnn-topic-state', default=False, action='store_true', help='Use topic as an initial word LSTM state')
-    #edit
+    # distributed
+    parser.add_argument("--local-rank", type=int, default=0)
+    # edit
     parser.add_argument('--kg-dir', type=str, default='./clinicgen/data/iuxray/kg_iuxray_origin.txt')
     parser.add_argument('--cls-pretrained', type=str, default='./models/gcnclassifier_v2_ones3_t0v1t2_lr1e-6_e60.pth')
     parser.add_argument('--corpus', type=str, default='a', choices=['a', 'flickr30k', 'mimic-cxr', 'open-i','iu-xray'], help='Corpus name')
