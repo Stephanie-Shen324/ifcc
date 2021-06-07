@@ -99,7 +99,7 @@ def main(args):
     if device == 'gpu':
         model = model.cuda()
     optimizers, schedulers, batch_schedulers = Optimizers.get_optmizers(model, args.lr, args.lr_img, args.lr_step,
-                                                                        args.lr_scheduler, 0.5, beta1=args.adam_beta1,
+                                                                        args.lr_scheduler, args.lr_decay_rate, beta1=args.adam_beta1,
                                                                         beta2=args.adam_beta2, train_steps=train_steps,
                                                                         d_train=args.hidden_size, warmup=args.warmup,
                                                                         steps_per_epoch=steps_per_epoch)
@@ -220,6 +220,7 @@ def parse_args():
     parser.add_argument('--lr-img', type=float, default=None, help='Learning rate for image')
     parser.add_argument('--lr-scheduler', type=str, default='linear', choices=['linear', 'trans'], help='A learning rate scheduler')
     parser.add_argument('--lr-step', type=int, default=8, help='Epochs to decay the learning rate')
+    parser.add_argument('--lr-decay-rate', type=float, default=0.5, help='lr decay rate')
     parser.add_argument('--m2-memory', type=int, default=40, help='M2 Transformer memory size')
     parser.add_argument('--max-sent', type=int, default=1, help='Max sentence num')
     parser.add_argument('--max-word', type=int, default=128, help='Max word num')
