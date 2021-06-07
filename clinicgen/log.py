@@ -22,8 +22,6 @@ class EpochLog:
         if epoch_loss is not None:
             logger.log_train(epoch, data_n, epoch_loss)
         results = {}
-        refs = {}
-        hypos = {}
         logger.evaluator.setup()
         if logger.device == 'gpu':
             logger.evaluator.cuda()
