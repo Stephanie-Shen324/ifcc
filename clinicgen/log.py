@@ -32,20 +32,23 @@ class EpochLog:
             scores = ','.join(['%.2f' % results[split][GenEval.EVAL_SCORE][i] for i in metric_idxs])
             pbar_vals['{0}_scores'.format(split)] = scores
 
-            if torch.is_tensor(list(refs.keys())[0]):
-                refs = {int(k): refs[k] for k in refs}
-                hypos = {int(k): hypos[k] for k in hypos}
-            # report generation storage
-            if not os.path.exists(os.path.join(logger.state, 'results')):
-                os.makedirs(os.path.join(logger.state, 'results'))
-            # ground truth
-            json_refs = json.dumps(refs)
-            with open(os.path.join(logger.state, 'results', '{}_ground_truth_e{}.json'.format(split, epoch)), 'w') as json_file:
-                json_file.write(json_refs)
-            # generate
-            json_hypos = json.dumps(hypos)
-            with open(os.path.join(logger.state, 'results', '{}_generate_e{}.json'.format(split, epoch)), 'w') as json_file:
-                json_file.write(json_hypos)
+            try:
+                if torch.is_tensor(list(refs.keys())[0]):
+                        refs = {int(k): refs[k] for k in refs}
+                        hypos = {int(k): hypos[k] for k in hypos}
+                # report generation storage
+                if not os.path.exists(os.path.join(logger.state, 'results')):
+                    os.makedirs(os.path.join(logger.state, 'results'))
+                # ground truth
+                json_refs = json.dumps(refs)
+                with open(os.path.join(logger.state, 'results', '{}_ground_truth_e{}.json'.format(split, epoch)), 'w') as json_file:
+                    json_file.write(json_refs)
+                # generate
+                json_hypos = json.dumps(hypos)
+                with open(os.path.join(logger.state, 'results', '{}_generate_e{}.json'.format(split, epoch)), 'w') as json_file:
+                    json_file.write(json_hypos)
+            except:
+                pass
         logger.evaluator.cleanup()
         logger.log(epoch, data_n, results, save)
 
