@@ -22,17 +22,31 @@ class EpochLog:
         if epoch_loss is not None:
             logger.log_train(epoch, data_n, epoch_loss)
         results = {}
+        refs = {}
+        hypos = {}
         logger.evaluator.setup()
         if logger.device == 'gpu':
             logger.evaluator.cuda()
         for split, data_loader in [('val', val_loader), ('test', test_loader)]:
             prog_name = split if progress else None
-            results[split] = logger.evaluator.generate_and_eval(data_loader, prog_name)
+            results[split], refs[split], hypos[split] = logger.evaluator.generate_and_eval(data_loader, prog_name)
             metric_idxs = logger.pbar_indexes()
             scores = ','.join(['%.2f' % results[split][GenEval.EVAL_SCORE][i] for i in metric_idxs])
             pbar_vals['{0}_scores'.format(split)] = scores
+            # report generation storage
+            if not os.path.exists(os.path.join(logger.state, 'results')):
+                os.makedirs(os.path.join(logger.state, 'results'))
+            # ground truth
+            json_refs = json.dumps(refs)
+            with open(os.path.join(logger.state, 'results', '{}_ground_truth_e{}.json'.format(split, epoch)), 'w') as json_file:
+                json_file.write(json_refs)
+            # generate
+            json_hypos = json.dumps(hypos)
+            with open(os.path.join(logger.state, 'results', '{}_generate_e{}.json'.format(split, epoch)), 'w') as json_file:
+                json_file.write(json_hypos)
         logger.evaluator.cleanup()
         logger.log(epoch, data_n, results, save)
+
         return pbar_vals
 
 

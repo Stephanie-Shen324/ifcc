@@ -689,7 +689,7 @@ class GenEval:
         else:
             scores, scores_detailed = self.eval(report_ids, refs, hypos, tfidf_vectorizer)
         return {self.EVAL_ID: report_ids, self.EVAL_SCORE: scores, self.EVAL_SCORE_DETAILED: scores_detailed,
-                self.EVAL_REPORT: reports}
+                self.EVAL_REPORT: reports},refs, hypos
 
     def load_and_eval(self, data_loader, load_path, batch=False):
         # Load reference data and evaluate generated outputs
