@@ -413,32 +413,12 @@ class M2Transformer(_TransformerCaptioner):
         node_states_comb= torch.cat(node_states_comb, dim=0)
         global_states_comb= torch.cat(global_states_comb, dim=0)
 
-
-        # Image features
-        # x_nz = model(x_nz)
-        # x_nz = cnn_feats_comb
-        # x_nz = x_nz.flatten(start_dim=-2, end_dim=-1)
-        # x_nz = x_nz.permute(0, 2, 1)
-
-        # # concat cnn and gcn feats
-        # x_nz = torch.cat((cnn_feats_comb, node_states_comb), dim=1)
-        #
-        # # # use gcn
-        # # x_nz=torch.cat((global_states_comb, node_states_comb), dim=1)
-        #
-        # x_nz = relu(self.image_proj_l(x_nz))
-        # x_nz = self.dropout(x_nz)
-        # if self.layer_norm is not None:
-        #     x_nz = self.layer_norm(x_nz)
-        # # Transformer encoder
-        # x_nz = x_nz.permute(1, 0, 2)
-
         # use cnn and gcn out put as input of attention
-        node_feats_comb = relu(self.image_proj_l(node_feats_comb))
-        node_feats_comb = self.dropout(node_feats_comb)
-        if self.layer_norm is not None:
-            node_feats_comb= self.layer_norm(node_feats_comb)
-        node_feats_comb = node_feats_comb.permute(1, 0, 2)
+        # node_feats_comb = relu(self.image_proj_l(node_feats_comb))
+        # node_feats_comb = self.dropout(node_feats_comb)
+        # if self.layer_norm is not None:
+        #     node_feats_comb= self.layer_norm(node_feats_comb)
+        # node_feats_comb = node_feats_comb.permute(1, 0, 2)
 
         node_states_comb = relu(self.image_proj_l(node_states_comb))
         node_states_comb = self.dropout(node_states_comb)
