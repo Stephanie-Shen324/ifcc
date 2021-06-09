@@ -354,11 +354,11 @@ class M2Transformer(_TransformerCaptioner):
         super(M2Transformer, self).__init__(embeddings, feat_dim, max_word, multi_image, False, layer_norm,
                                             teacher_forcing, image_model, image_pretrained, finetune_image,
                                             image_finetune_epoch, rl_opts, word_idxs, device, verbose)
-        # self.feed_mode = feed_mode
-        # OVERRIDE Some Layers
-        self.dropout = clones(Dropout(0.1), 2)
-        self.layer_norm = clones(LayerNorm(feat_dim) , 2)if layer_norm else None
-        self.image_proj_l = clones(Linear(self.image_dim, feat_dim), 2)
+        # # self.feed_mode = feed_mode
+        # # OVERRIDE Some Layers
+        # self.dropout = clones(Dropout(0.1), 2)
+        # self.layer_norm = clones(LayerNorm(feat_dim) , 2)if layer_norm else None
+        # self.image_proj_l = clones(Linear(self.image_dim, feat_dim), 2)
 
         # Transformer Encoder
         encoder_layer = TransformerEncoderLayerWithMem(feat_dim, nhead=8, nmem=num_memory)

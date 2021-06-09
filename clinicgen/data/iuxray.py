@@ -41,6 +41,9 @@ class IUXRAYData(_RadiologyReportData):
             raise ValueError('IU-XRAY data only supports cached texts')
         super().__init__(root, section, split, cache_image, cache_text, multi_image=multi_image,
                          single_image_doc=single_image_doc, dump_dir=dump_dir)
+        self.training_ratio = training_ratio
+        assert 0.0 <= self.training_ratio <= 1.0
+
         pre_transform, self.transform = IUXRAYData.get_transform(cache_image, img_mode, img_augment)
         self.target_transform = target_transform
         self.chexpert_labels_path = os.path.join(root, 'mimic-cxr-jpg', '2.0.0', self.CHEXPERT_PATH)
@@ -63,6 +66,7 @@ class IUXRAYData(_RadiologyReportData):
             if self.load():
                 print('Loaded data dump from %s (%.2fs)' % (dump_dir, time.time() - t))
                 self.pre_processes(filter_reports)
+                self.apply_training_ratio(split)
                 return
         # assume done
         #########################
@@ -122,9 +126,7 @@ class IUXRAYData(_RadiologyReportData):
         if dump_dir is not None:
             self.dump()
         self.pre_processes(filter_reports)
-        self.training_ratio = training_ratio
-        assert 0.0 <= self.training_ratio <= 1.0
-        self.apply_training_ratio(split)
+
 
     def apply_training_ratio(self, split):
             if split == 'train':
@@ -140,8 +142,6 @@ class IUXRAYData(_RadiologyReportData):
                 self.targets = self.targets[:select]
 
                 print('done %d->%d (%.2fs)' % (total, select, time.time() - t), flush=True)
-
-
 
 
     def __getitem__(self, index):

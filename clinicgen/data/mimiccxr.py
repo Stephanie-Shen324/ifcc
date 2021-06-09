@@ -45,6 +45,9 @@ class MIMICCXRData(_RadiologyReportData):
         pre_transform, self.transform = MIMICCXRData.get_transform(cache_image, img_mode, img_augment)
         self.target_transform = target_transform
         self.chexpert_labels_path = os.path.join(root, 'mimic-cxr-jpg', '2.0.0', self.CHEXPERT_PATH)
+        self.training_ratio = training_ratio
+        assert 0.0 <= self.training_ratio <= 1.0
+
 
         annotation = json.loads(open('/content/mimic_cxr/annotation.json', 'r').read())
         texts_train = annotation['train']
@@ -64,6 +67,7 @@ class MIMICCXRData(_RadiologyReportData):
             if self.load():
                 print('Loaded data dump from %s (%.2fs)' % (dump_dir, time.time() - t))
                 self.pre_processes(filter_reports)
+                self.apply_training_ratio(split)
                 return
         # assume done
         #########################
@@ -119,9 +123,7 @@ class MIMICCXRData(_RadiologyReportData):
         if dump_dir is not None:
             self.dump()
         self.pre_processes(filter_reports)
-        self.training_ratio = training_ratio
-        assert 0.0 <= self.training_ratio <= 1.0
-        self.apply_training_ratio(split)
+
 
     def apply_training_ratio(self, split):
             if split == 'train':
