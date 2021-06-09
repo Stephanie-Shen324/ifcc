@@ -7,6 +7,7 @@ from clinicgen.models.m2transformer import M2Transformer
 from clinicgen.models.sat import ShowAttendAndTell
 from clinicgen.models.tienet import TieNet
 from clinicgen.models.transformer import TransformerCaptioner, TransformerSimpleCaptioner
+# from clinicgen.models.dwem2transformer import DWEM2Transformer
 from clinicgen.nli import SimpleNLI
 
 
@@ -41,7 +42,15 @@ class Models:
                                   image_model=image_model, image_pretrained=image_pretrained,
                                   finetune_image=finetune_image, image_finetune_epoch=image_finetune_epoch,
                                   rl_opts=rl_opts, word_idxs=word_idxs, device=device, verbose=verbose,
-                                  cls_pretrained=cls_pretrained,kg_dir=kg_dir)
+                                  cls_pretrained=cls_pretrained,kg_dir=kg_dir)#,feed_mode = feed_mode)
+        # elif name == 'dwem2trans':
+        #     model = DWEM2Transformer(embeddings, feat_dim=hidden_size, max_word=max_word, multi_image=multi_image,
+        #                           layer_norm=trans_layer_norm, num_enc_layers=trans_enc_layers,
+        #                           num_dec_layers=trans_layers, num_memory=m2_memory, teacher_forcing=teacher_forcing,
+        #                           image_model=image_model, image_pretrained=image_pretrained,
+        #                           finetune_image=finetune_image, image_finetune_epoch=image_finetune_epoch,
+        #                           rl_opts=rl_opts, word_idxs=word_idxs, device=device, verbose=verbose,
+        #                           cls_pretrained=cls_pretrained, kg_dir=kg_dir)
         elif name == 'sat':
             model = ShowAttendAndTell(embeddings, context_dim=hidden_size, lstm_dim=sat_lstm_dim,  max_word=max_word,
                                       multi_image=multi_image, multi_merge=multi_merge, teacher_forcing=teacher_forcing,

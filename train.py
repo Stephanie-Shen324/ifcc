@@ -60,7 +60,7 @@ def main(args):
                                  args.tokenfilter, max_sent, args.max_word, multi_image=args.multi_image,
                                  img_mode=args.img_trans, img_augment=args.img_augment, single_test=args.single_test,
                                  cache_data=args.cache_data, section=args.section, anatomy=args.anatomy,
-                                 meta=args.splits, exclude_ids=args.exclude_ids, a_labels=args.a_labels)
+                                 meta=args.splits, exclude_ids=args.exclude_ids, a_labels=args.a_labels, training_ratio = args.training_ratio)
     nw = 0 if args.cache_data else args.num_workers
     train_loader = DataLoader(datasets['train'], batch_size=args.batch_size, shuffle=True, num_workers=nw,
                               pin_memory=args.pin_memory)
@@ -251,7 +251,8 @@ def parse_args():
     parser.add_argument('--m2-memory', type=int, default=40, help='M2 Transformer memory size')
     parser.add_argument('--max-sent', type=int, default=1, help='Max sentence num')
     parser.add_argument('--max-word', type=int, default=128, help='Max word num')
-    parser.add_argument('--model', type=str, default='m2trans', choices=['cnnrnnrnn', 'kwl', 'm2trans', 'sat', 'tienet', 'trans', 'trans-s'])
+    # support dwe m2
+    parser.add_argument('--model', type=str, default='m2trans', choices=['cnnrnnrnn', 'kwl', 'm2trans', 'sat', 'tienet', 'trans', 'trans-s'])#,'dwem2trans'])
     parser.add_argument('--model-save', type=str, default=None, help='A model save path')
     parser.add_argument('--multi-image', type=int, default=2, help='Multi image number')
     parser.add_argument('--multi-merge', type=str, default='max', choices=['att', 'max'], help='A merge method for multi images')
@@ -292,6 +293,10 @@ def parse_args():
     parser.add_argument('--verbose', default=False, action='store_true', help='Verbose outputs')
     parser.add_argument('--view-position', default=False, action='store_true', help='Include view position embeddings')
     parser.add_argument('--warmup', type=int, default=2000, help='Warm-up steps for optimizers')
+
+    parser.add_argument('--training_ratio', type = float, default = '1.0', help ='Select the training ratio. Recommend: 0.001, 0.005, 0.01, 0.1, 0.5 and 1.0')
+    # parser.add_argument('--feed_mode', type=str, default = 'both', choices = ['both','cnn_only','gcn_only'], help = 'which features as the input of Transformer')
+
     return parser.parse_args()
 
 

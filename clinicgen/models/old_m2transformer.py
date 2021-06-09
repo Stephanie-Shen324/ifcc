@@ -12,8 +12,8 @@ from torch.nn.modules.activation import MultiheadAttention
 from torch.nn.modules.transformer import _get_activation_fn, TransformerDecoderLayer, TransformerDecoder, TransformerEncoder
 from torch.nn.parameter import Parameter
 from clinicgen.models.transformer import _TransformerCaptioner
-from clinicgen.models.gcnclassifier import GCNClassifier
-# from clinicgen.models.mlclassifier import GCNClassifier
+# from clinicgen.models.gcnclassifier import GCNClassifier
+from clinicgen.models.mlclassifier import GCNClassifier
 import random
 
 import torch.nn as nn
@@ -350,16 +350,11 @@ class M2Transformer(_TransformerCaptioner):
     def __init__(self, embeddings, feat_dim=512, max_word=32, multi_image=1, layer_norm=False, num_memory=40,
                  num_enc_layers=6, num_dec_layers=6, teacher_forcing=False, image_model=None, image_pretrained=None,
                  finetune_image=False, image_finetune_epoch=None, rl_opts=None, word_idxs=None, device='gpu',
-                 verbose=False,cls_pretrained=None,kg_dir=None):#, feed_mode = 'both'):
+                 verbose=False,cls_pretrained=None,kg_dir=None, feed_mode = 'both'):
         super(M2Transformer, self).__init__(embeddings, feat_dim, max_word, multi_image, False, layer_norm,
                                             teacher_forcing, image_model, image_pretrained, finetune_image,
                                             image_finetune_epoch, rl_opts, word_idxs, device, verbose)
-        # self.feed_mode = feed_mode
-        # OVERRIDE Some Layers
-        self.dropout = clones(Dropout(0.1), 2)
-        self.layer_norm = clones(LayerNorm(feat_dim) , 2)if layer_norm else None
-        self.image_proj_l = clones(Linear(self.image_dim, feat_dim), 2)
-
+        self.feed_mode = feed_mode
         # Transformer Encoder
         encoder_layer = TransformerEncoderLayerWithMem(feat_dim, nhead=8, nmem=num_memory)
         self.encoder = MeshedTransformerEncoder(encoder_layer, num_layers=num_enc_layers)
@@ -375,21 +370,21 @@ class M2Transformer(_TransformerCaptioner):
             self.gcncls.load_state_dict(state_dict)
             print('load pretrained classifier model from {} successfully!'.format(cls_pretrained))
 
-    # def feed_mode_controller(self, att_feats, node_feats):
-    #     assert self.feed_mode != None
-    #
-    #     if self.feed_mode == 'both':
-    #         if self.encoder_mode in ['dualwayencoder', 'xdualwayencoder']:
-    #             input_feats = [att_feats, node_feats]
-    #         else:
-    #             input_feats = torch.cat((att_feats, node_feats), dim=1)  # torch.Size([16, 70, 2048])
-    #     # feed only CNN features
-    #     elif self.feed_mode == 'cnn_only':
-    #         input_feats = att_feats
-    #     # feed only graph embedded features
-    #     elif self.feed_mode == 'gcn_only':
-    #         input_feats = node_feats
-    #     return input_feats
+    def feed_mode_controller(self, att_feats, node_feats):
+        assert self.feed_mode != None
+
+        if self.feed_mode == 'both':
+            if self.encoder_mode in ['dualwayencoder', 'xdualwayencoder']:
+                input_feats = [att_feats, node_feats]
+            else:
+                input_feats = torch.cat((att_feats, node_feats), dim=1)  # torch.Size([16, 70, 2048])
+        # feed only CNN features
+        elif self.feed_mode == 'cnn_only':
+            input_feats = att_feats
+        # feed only graph embedded features
+        elif self.feed_mode == 'gcn_only':
+            input_feats = node_feats
+        return input_feats
 
 
     def decode_beam(self, encoded_data, beam_size, allow_stop=True, recover_words=None, diversity_rate=0.0):
@@ -437,12 +432,14 @@ class M2Transformer(_TransformerCaptioner):
             node_feats_comb.append(node_feats)
             node_states_comb.append(node_states)
             global_states_comb.append(global_states.unsqueeze(1))
-        cnn_feats_comb=torch.cat(cnn_feats_comb, dim=0) # Key Feats
+        cnn_feats_comb=torch.cat(cnn_feats_comb, dim=0)
         node_feats_comb = torch.cat(node_feats_comb, dim=0)
-        node_states_comb= torch.cat(node_states_comb, dim=0) # Key Feats
+        node_states_comb= torch.cat(node_states_comb, dim=0)
         global_states_comb= torch.cat(global_states_comb, dim=0)
 
-        all_feats = torch.cat([cnn_feats_comb,node_states_comb],dim = 1)
+        # gcncls
+        #
+        # att_feats, node_feats, fc_feats = self.gcncls(images[:, 0], images[:, 1])
 
         # Image features
         # x_nz = model(x_nz)
@@ -464,21 +461,20 @@ class M2Transformer(_TransformerCaptioner):
         # x_nz = x_nz.permute(1, 0, 2)
 
         # use cnn and gcn out put as input of attention
-        all_feats = relu(self.image_proj_l(all_feats))
-        all_feats = self.dropout(all_feats)
+        node_feats_comb = relu(self.image_proj_l(node_feats_comb))
+        node_feats_comb = self.dropout(node_feats_comb)
         if self.layer_norm is not None:
-            all_feats= self.layer_norm(all_feats)
-        all_feats = all_feats.permute(1, 0, 2)
+            node_feats_comb= self.layer_norm(node_feats_comb)
+        node_feats_comb = node_feats_comb.permute(1, 0, 2)
 
-        # node_states_comb = relu(self.image_proj_l(node_states_comb))
-        # node_states_comb = self.dropout(node_states_comb)
-        # if self.layer_norm is not None:
-        #     node_states_comb = self.layer_norm(node_states_comb)
-        # node_states_comb = node_states_comb.permute(1, 0, 2)
-
+        node_states_comb = relu(self.image_proj_l(node_states_comb))
+        node_states_comb = self.dropout(node_states_comb)
+        if self.layer_norm is not None:
+            node_states_comb = self.layer_norm(node_states_comb)
+        node_states_comb = node_states_comb.permute(1, 0, 2)
         # Transformer encoder
         # x_nz = self.encoder(node_feats_comb, node_states_comb)  # make cnn as q, gcn as k,v
-        x_nz = self.encoder(all_feats, all_feats)
+        x_nz = self.encoder(node_states_comb,node_states_comb)  # only gcn
         x_nz = x_nz.permute(1, 2, 0, 3)
         xms = []
         if self.multi_image > 1:
