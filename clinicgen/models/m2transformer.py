@@ -444,11 +444,11 @@ class M2Transformer(_TransformerCaptioner):
 
         all_feats = torch.cat([cnn_feats_comb,node_states_comb],dim = 1)
 
-        if feed_mode=='both':
+        if self.feed_mode=='both':
             input_feats=all_feats
-        elif feed_mode=='cnn_only':
+        elif self.feed_mode=='cnn_only':
             input_feats = cnn_feats_comb
-        elif feed_mode=='gcn_only':
+        elif self.feed_mode=='gcn_only':
             input_feats = node_states_comb
 
         # use cnn and gcn out put as input of attention
