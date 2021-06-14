@@ -26,11 +26,11 @@ class MeshedTransformerEncoder(TransformerEncoder):
     def __init__(self, encoder_layer, num_layers):
         super(MeshedTransformerEncoder, self).__init__(encoder_layer, num_layers)
 
-    def forward(self, cnn_out, gcn_out, mask=None, src_key_padding_mask=None):
-        # output = src
+    def forward(self, src, mask=None, src_key_padding_mask=None):
+        output = src
         outputs = []
         for i in range(self.num_layers):
-            output = self.layers[i](cnn_out, gcn_out, src_mask=mask, src_key_padding_mask=src_key_padding_mask)
+            output = self.layers[i](output, src_mask=mask, src_key_padding_mask=src_key_padding_mask)
             outputs.append(output)
         output = torch.stack(outputs, dim=1)
         return output
@@ -333,9 +333,9 @@ class TransformerEncoderLayerWithMem(Module):
 
         self.activation = _get_activation_fn(activation)
 
-    def forward(self, cnn_out, gcn_out, src_mask=None, src_key_padding_mask=None):
-        src2 = self.self_attn(cnn_out, gcn_out, gcn_out, attn_mask=src_mask, key_padding_mask=src_key_padding_mask)[0]
-        src = cnn_out + self.dropout1(src2)
+    def forward(self, src, src_mask=None, src_key_padding_mask=None):
+        src2 = self.self_attn(src, src, src, attn_mask=src_mask, key_padding_mask=src_key_padding_mask)[0]
+        src = src + self.dropout1(src2)
         src = self.norm1(src)
         if hasattr(self, "activation"):
             src2 = self.linear2(self.dropout(self.activation(self.linear1(src))))
@@ -350,7 +350,7 @@ class M2Transformer(_TransformerCaptioner):
     def __init__(self, embeddings, feat_dim=512, max_word=32, multi_image=1, layer_norm=False, num_memory=40,
                  num_enc_layers=6, num_dec_layers=6, teacher_forcing=False, image_model=None, image_pretrained=None,
                  finetune_image=False, image_finetune_epoch=None, rl_opts=None, word_idxs=None, device='gpu',
-                 verbose=False,cls_pretrained=None,kg_dir=None):#, feed_mode = 'both'):
+                 verbose=False,cls_pretrained=None,kg_dir=None,feed_mode='both'):#, feed_mode = 'both'):
         super(M2Transformer, self).__init__(embeddings, feat_dim, max_word, multi_image, False, layer_norm,
                                             teacher_forcing, image_model, image_pretrained, finetune_image,
                                             image_finetune_epoch, rl_opts, word_idxs, device, verbose)
@@ -374,7 +374,7 @@ class M2Transformer(_TransformerCaptioner):
             state_dict.update({k: v for k, v in pretrained_state_dict.items() if k in state_dict and 'fc' not in k})
             self.gcncls.load_state_dict(state_dict)
             print('load pretrained classifier model from {} successfully!'.format(cls_pretrained))
-
+        self.feed_mode=feed_mode
     # def feed_mode_controller(self, att_feats, node_feats):
     #     assert self.feed_mode != None
     #
@@ -444,31 +444,19 @@ class M2Transformer(_TransformerCaptioner):
 
         all_feats = torch.cat([cnn_feats_comb,node_states_comb],dim = 1)
 
-        # Image features
-        # x_nz = model(x_nz)
-        # x_nz = cnn_feats_comb
-        # x_nz = x_nz.flatten(start_dim=-2, end_dim=-1)
-        # x_nz = x_nz.permute(0, 2, 1)
-
-        # # concat cnn and gcn feats
-        # x_nz = torch.cat((cnn_feats_comb, node_states_comb), dim=1)
-        #
-        # # # use gcn
-        # # x_nz=torch.cat((global_states_comb, node_states_comb), dim=1)
-        #
-        # x_nz = relu(self.image_proj_l(x_nz))
-        # x_nz = self.dropout(x_nz)
-        # if self.layer_norm is not None:
-        #     x_nz = self.layer_norm(x_nz)
-        # # Transformer encoder
-        # x_nz = x_nz.permute(1, 0, 2)
+        if feed_mode=='both':
+            input_feats=all_feats
+        elif feed_mode=='cnn_only':
+            input_feats = cnn_feats_comb
+        elif feed_mode=='gcn_only':
+            input_feats = node_states_comb
 
         # use cnn and gcn out put as input of attention
-        all_feats = relu(self.image_proj_l(all_feats))
-        all_feats = self.dropout(all_feats)
+        input_feats = relu(self.image_proj_l(input_feats))
+        input_feats = self.dropout(input_feats)
         if self.layer_norm is not None:
-            all_feats= self.layer_norm(all_feats)
-        all_feats = all_feats.permute(1, 0, 2)
+            input_feats= self.layer_norm(input_feats)
+        input_feats = input_feats.permute(1, 0, 2)
 
         # node_states_comb = relu(self.image_proj_l(node_states_comb))
         # node_states_comb = self.dropout(node_states_comb)
@@ -478,7 +466,7 @@ class M2Transformer(_TransformerCaptioner):
 
         # Transformer encoder
         # x_nz = self.encoder(node_feats_comb, node_states_comb)  # make cnn as q, gcn as k,v
-        x_nz = self.encoder(all_feats, all_feats)
+        x_nz = self.encoder(input_feats)
         x_nz = x_nz.permute(1, 2, 0, 3)
         xms = []
         if self.multi_image > 1:

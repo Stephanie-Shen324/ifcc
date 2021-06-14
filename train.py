@@ -106,7 +106,7 @@ def main(args):
                              trans_image_pe=args.img_pe, trans_layers=args.trans_layers,
                              trans_enc_layers=args.trans_enc_layers, trans_layer_norm=args.trans_layer_norm,
                              m2_memory=args.m2_memory, tienet_labels=args.tienet_labels, verbose=args.verbose,
-                             cls_pretrained=args.cls_pretrained,kg_dir=args.kg_dir) #edit
+                             cls_pretrained=args.cls_pretrained,kg_dir=args.kg_dir,feed_mode=args.feed_mode) #edit
 
     if distributed:
         # this should be removed if we update BatchNorm stats
@@ -224,6 +224,8 @@ def parse_args():
     # distributed
     parser.add_argument("--local-rank", type=int, default=0)
     # edit
+    parser.add_argument('--feed_mode', type=str, default='both', choices=['both', 'cnn_only', 'gcn_only'],
+                        help='which features as the input of Transformer')
     parser.add_argument('--kg-dir', type=str, default='./clinicgen/data/iuxray/kg_iuxray_origin.txt')
     parser.add_argument('--cls-pretrained', type=str, default='./models/gcnclassifier_v2_ones3_t0v1t2_lr1e-6_e60.pth')
     parser.add_argument('--corpus', type=str, default='a', choices=['a', 'flickr30k', 'mimic-cxr', 'open-i','iu-xray'], help='Corpus name')
