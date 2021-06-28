@@ -9,8 +9,8 @@ import time
 import torch
 from tqdm import tqdm
 from clinicgen.data.image2text import _CaptioningData, _RadiologyReportData
-
 import json
+from torch.utils.data import Dataset
 
 """
 A brief view of a document in the IU XRAY customized dataset.
@@ -36,16 +36,19 @@ class IUXRAYData(_RadiologyReportData):
 
     def __init__(self, root, section='findings', split=None, target_transform=None, cache_image=False, cache_text=True,
                  multi_image=1, img_mode='center', img_augment=False, single_image_doc=False, dump_dir=None,
-                 filter_reports=True):
+                 filter_reports=True,training_ratio = 1.0):
         if not cache_text:
             raise ValueError('IU-XRAY data only supports cached texts')
         super().__init__(root, section, split, cache_image, cache_text, multi_image=multi_image,
                          single_image_doc=single_image_doc, dump_dir=dump_dir)
+        self.training_ratio = training_ratio
+        assert 0.0 <= self.training_ratio <= 1.0
+
         pre_transform, self.transform = IUXRAYData.get_transform(cache_image, img_mode, img_augment)
         self.target_transform = target_transform
         self.chexpert_labels_path = os.path.join(root, 'mimic-cxr-jpg', '2.0.0', self.CHEXPERT_PATH)
 
-        annotation = json.loads(open('/content/iu_xray_resized/annotation.json', 'r').read())
+        annotation = json.loads(open(os.path.join(root, 'annotation.json'), 'r').read())
         texts_train = annotation['train']
         texts_val = annotation['val']
         texts_test = annotation['test']
@@ -63,6 +66,7 @@ class IUXRAYData(_RadiologyReportData):
             if self.load():
                 print('Loaded data dump from %s (%.2fs)' % (dump_dir, time.time() - t))
                 self.pre_processes(filter_reports)
+                self.apply_training_ratio(split)
                 return
         # assume done
         #########################
@@ -87,13 +91,16 @@ class IUXRAYData(_RadiologyReportData):
                     self.ids.append(did) #not used
                     self.doc_ids.append(sid)
 
-                    image_path = row['image_path'][0]
+                    image_list=[]
+                    for image_path in row['image_path']:
+                    # image_path = row['image_path'][0]
 
                     # image
                     #Todo: image_path in iu xray is list of 2 items
-                    image = os.path.join(root, 'images', image_path)  # todo: modify the path
-                    if cache_image:
-                        image = self.bytes_image(image, pre_transform)
+                        image = os.path.join(root, 'images', image_path)  # todo: modify the path
+                        if cache_image:
+                            image = self.bytes_image(image, pre_transform)
+                        image_list.append(image)
                     # report
                     # assume cache_text = True
                     # report = os.path.join(root, 'mimic-cxr', '2.0.0', 'files', 'p{0}'.format(pid[:2]), 'p' + pid,
@@ -104,7 +111,7 @@ class IUXRAYData(_RadiologyReportData):
                         report = sections[sid] if sid in sections else gzip.compress(pickle.dumps({}))
                         if sid not in sections:
                             print('{} not in sections'.format(sid))
-                    self.samples.append((image, report))
+                    self.samples.append((image_list, report))
                     # image: image_path, report: report_path
                     self.targets.append(report)
                 count += 1
@@ -120,9 +127,27 @@ class IUXRAYData(_RadiologyReportData):
             self.dump()
         self.pre_processes(filter_reports)
 
+
+    def apply_training_ratio(self, split):
+            if split == 'train':
+                t = time.time()
+                total = len(self.samples)
+                print('{} set: applying training_ratio {}  ... '.format(split,self.training_ratio), end='', flush=True)
+                select = int(total // (1/self.training_ratio)) + 1
+
+                self.ids = self.ids[:select]
+                self.doc_ids = self.doc_ids[:select]
+                self.image_ids = self.image_ids[:select]
+                self.samples = self.samples[:select]
+                self.targets = self.targets[:select]
+
+                print('done %d->%d (%.2fs)' % (total, select, time.time() - t), flush=True)
+
+
     def __getitem__(self, index):
         rid, sample, target, _ = super().__getitem__(index)
         # View position features
+
         if self.multi_image > 1:
             vp = [self.view_position_embedding(self.view_positions[iid]) for iid in self.image_ids[index]]
             vp = [p.unsqueeze(dim=0) for p in vp]

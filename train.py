@@ -23,6 +23,7 @@ from clinicgen.log import EpochLog, FileLogger
 from clinicgen.models.image2text import StepTFR
 from clinicgen.models.utils import Models, RLOptions
 from clinicgen.optmizer import Optimizers
+import torch.distributed as dist
 
 
 def main(args):
@@ -36,6 +37,19 @@ def main(args):
     random.seed(args.seed)
     np.random.seed(args.seed)
     torch.manual_seed(args.seed)
+    torch.cuda.manual_seed(args.seed)
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False
+    # DistributedDataParallel init
+    num_gpus = torch.cuda.device_count()
+    distributed = num_gpus > 1
+    if distributed:
+        torch.cuda.set_device(args.local_rank)
+        torch.distributed.init_process_group(
+            backend="nccl", init_method="env://"
+        )
+
+
     # Embeddings
     embeddings, word_idxs = PretrainedEmbeddings.load_embeddings(args.embeddings)
     # Data
@@ -46,7 +60,7 @@ def main(args):
                                  args.tokenfilter, max_sent, args.max_word, multi_image=args.multi_image,
                                  img_mode=args.img_trans, img_augment=args.img_augment, single_test=args.single_test,
                                  cache_data=args.cache_data, section=args.section, anatomy=args.anatomy,
-                                 meta=args.splits, exclude_ids=args.exclude_ids, a_labels=args.a_labels)
+                                 meta=args.splits, exclude_ids=args.exclude_ids, a_labels=args.a_labels, training_ratio = args.training_ratio)
     nw = 0 if args.cache_data else args.num_workers
     train_loader = DataLoader(datasets['train'], batch_size=args.batch_size, shuffle=True, num_workers=nw,
                               pin_memory=args.pin_memory)
@@ -91,11 +105,22 @@ def main(args):
                              cnnrnnrnn_simple_proj=args.cnnrnnrnn_simple_proj, sat_lstm_dim=args.sat_lstm_dim,
                              trans_image_pe=args.img_pe, trans_layers=args.trans_layers,
                              trans_enc_layers=args.trans_enc_layers, trans_layer_norm=args.trans_layer_norm,
-                             m2_memory=args.m2_memory, tienet_labels=args.tienet_labels, verbose=args.verbose)
-    if device == 'gpu':
-        model = model.cuda()
+                             m2_memory=args.m2_memory, tienet_labels=args.tienet_labels, verbose=args.verbose,
+                             cls_pretrained=args.cls_pretrained,kg_dir=args.kg_dir,feed_mode=args.feed_mode) #edit
+
+    if distributed:
+        # this should be removed if we update BatchNorm stats
+        model = torch.nn.parallel.DistributedDataParallel(
+            model.to(device),
+            device_ids=[args.local_rank],
+            output_device=args.local_rank,
+            broadcast_buffers=False
+        )
+    else:
+        if device == 'gpu':
+            model = model.cuda()
     optimizers, schedulers, batch_schedulers = Optimizers.get_optmizers(model, args.lr, args.lr_img, args.lr_step,
-                                                                        args.lr_scheduler, 0.5, beta1=args.adam_beta1,
+                                                                        args.lr_scheduler, args.lr_decay_rate, beta1=args.adam_beta1,
                                                                         beta2=args.adam_beta2, train_steps=train_steps,
                                                                         d_train=args.hidden_size, warmup=args.warmup,
                                                                         steps_per_epoch=steps_per_epoch)
@@ -134,9 +159,11 @@ def main(args):
                         # Train
                         losses = model.train_step(inp, targ, optimizers, ids=ids, schedulers=batch_schedulers,
                                                   meta=(vp,), clip_grad=args.clip_grad, device=device,
-                                                  non_blocking=train_loader.pin_memory, epoch=epoch + 1)
+                                                  non_blocking=train_loader.pin_memory, epoch=epoch + 1,train=True)
                         epoch_loss = logger.epoch_loss_update(epoch_loss, losses)
                         pbar_vals['losses'] = model.loss_progress(epoch_loss)
+                        if distributed:
+                            dist.barrier()
                         # Validation / Test
                         data_n += inp.shape[0]
                         eval_interval += inp.shape[0]
@@ -153,11 +180,19 @@ def main(args):
                             else:
                                 pbar.update(tqdm_interval)
                             tqdm_interval = tqdm_interval - args.tqdm_interval if args.tqdm_interval is not None else 0
+
+                if distributed:
+                    dist.barrier()
                 # Epoch end processes
+                if batch_schedulers is not None:
+                    for _, batch_scheduler in batch_schedulers.items():
+                        print('batch_last_lr----', batch_scheduler.get_last_lr()[0])
                 for _, scheduler in schedulers.items():
                     scheduler.step()
+                    print('lr----', scheduler.get_last_lr()[0])
                 if scheduler_tfr is not None:
                     scheduler_tfr.step()
+                    print('scheduler_tfr lr----', scheduler_tfr.get_last_lr()[0])
                 pbar_vals = EpochLog.log_datasets(logger, pbar_vals, epoch, data_n, epoch_loss, val_loader, test_loader,
                                                   save=args.log_models, progress=True)
                 logger.save_current_model(epoch)
@@ -186,7 +221,13 @@ def parse_args():
     parser.add_argument('--clip-grad', type=float, default=None, help='Clip gradients')
     parser.add_argument('--cnnrnnrnn-mlp-proj', dest='cnnrnnrnn_simple_proj', default=True, action='store_false', help='An MLP visual feature projection for CNNRNNRNN')
     parser.add_argument('--cnnrnnrnn-topic-state', default=False, action='store_true', help='Use topic as an initial word LSTM state')
-    #edit
+    # distributed
+    parser.add_argument("--local-rank", type=int, default=0)
+    # edit
+    parser.add_argument('--feed_mode', type=str, default='both', choices=['both', 'cnn_only', 'gcn_only'],
+                        help='which features as the input of Transformer')
+    parser.add_argument('--kg-dir', type=str, default='./clinicgen/data/iuxray/kg_iuxray_origin.txt')
+    parser.add_argument('--cls-pretrained', type=str, default='./models/gcnclassifier_v2_ones3_t0v1t2_lr1e-6_e60.pth')
     parser.add_argument('--corpus', type=str, default='a', choices=['a', 'flickr30k', 'mimic-cxr', 'open-i','iu-xray'], help='Corpus name')
     parser.add_argument('--cuda', default=False, action='store_true', help='Use GPU')
     parser.add_argument('--entity-match', type=str, default=None, help='A path to reference entities')
@@ -208,12 +249,14 @@ def parse_args():
     parser.add_argument('--lr-img', type=float, default=None, help='Learning rate for image')
     parser.add_argument('--lr-scheduler', type=str, default='linear', choices=['linear', 'trans'], help='A learning rate scheduler')
     parser.add_argument('--lr-step', type=int, default=8, help='Epochs to decay the learning rate')
+    parser.add_argument('--lr-decay-rate', type=float, default=0.5, help='lr decay rate')
     parser.add_argument('--m2-memory', type=int, default=40, help='M2 Transformer memory size')
     parser.add_argument('--max-sent', type=int, default=1, help='Max sentence num')
     parser.add_argument('--max-word', type=int, default=128, help='Max word num')
-    parser.add_argument('--model', type=str, default='m2trans', choices=['cnnrnnrnn', 'kwl', 'm2trans', 'sat', 'tienet', 'trans', 'trans-s'])
+    # support dwe m2
+    parser.add_argument('--model', type=str, default='m2trans', choices=['cnnrnnrnn', 'kwl', 'm2trans', 'sat', 'tienet', 'trans', 'trans-s'])#,'dwem2trans'])
     parser.add_argument('--model-save', type=str, default=None, help='A model save path')
-    parser.add_argument('--multi-image', type=int, default=3, help='Multi image number')
+    parser.add_argument('--multi-image', type=int, default=2, help='Multi image number')
     parser.add_argument('--multi-merge', type=str, default='max', choices=['att', 'max'], help='A merge method for multi images')
     parser.add_argument('--nli', type=str, default=None, choices=['mednli', 'mednli-rad'], help='NLI model type')
     parser.add_argument('--nli-batch', type=int, default=24, help='NLI batch size')
@@ -233,7 +276,7 @@ def parse_args():
     parser.add_argument('--rl-weights', type=str, default=None, help='A scaling weights for RL training')
     parser.add_argument('--sat-lstm-dim', type=int, default=1000, help='An LSTM dimension for SAT')
     parser.add_argument('--section', type=str, default='findings', help='Report section')
-    parser.add_argument('--seed', type=int, default=1, help='Random seed')
+    parser.add_argument('--seed', type=int, default=123, help='Random seed')
     parser.add_argument('--sentsplitter', type=str, default='none', choices=['linebreak', 'nltk', 'none', 'stanford'], help='Sentence splitter name')
     parser.add_argument('--single-test', default=False, action='store_true', help='Test with a single image setting')
     parser.add_argument('--spice', default=False, action='store_true', help='SPICE evaluation')
@@ -252,6 +295,10 @@ def parse_args():
     parser.add_argument('--verbose', default=False, action='store_true', help='Verbose outputs')
     parser.add_argument('--view-position', default=False, action='store_true', help='Include view position embeddings')
     parser.add_argument('--warmup', type=int, default=2000, help='Warm-up steps for optimizers')
+
+    parser.add_argument('--training_ratio', type = float, default = '1.0', help ='Select the training ratio. Recommend: 0.001, 0.005, 0.01, 0.1, 0.5 and 1.0')
+    # parser.add_argument('--feed_mode', type=str, default = 'both', choices = ['both','cnn_only','gcn_only'], help = 'which features as the input of Transformer')
+
     return parser.parse_args()
 
 

@@ -58,6 +58,8 @@ class _TransformerCaptioner(_Image2Text):
             image_model = 'densenet'
         self.image_feats, image_dim = ImageClassification.image_features(image_model, not finetune_image, True,
                                                                          image_pretrained, device)
+        self.image_dim = image_dim
+        # image_dim=2048
         self.image_proj_l = Linear(image_dim, feat_dim)
         image_len = int(math.sqrt(self.VISUAL_NUM))
         self.image_weight = math.sqrt(image_len)
@@ -131,8 +133,8 @@ class _TransformerCaptioner(_Image2Text):
             x = x.view(int(x.shape[0] / self.multi_image), self.multi_image, x.shape[1], x.shape[2])
         return x
 
-    def encode(self, x, meta):
-        return self.encode_image(x)
+    def encode(self, x, meta,train):
+        return self.encode_image(x,train)
 
     def encode_image(self, x):
         # CNN features

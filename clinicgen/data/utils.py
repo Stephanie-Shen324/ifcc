@@ -15,7 +15,7 @@ class Data:
     def get_datasets(cls, path, corpus, word_indexes, sentsplitter, tokenizer, textfilter, tokenfilter, max_sent,
                      max_word, multi_image=1, img_mode='center', img_augment=False, single_test=False, cache_data=None,
                      section='findings', anatomy=None, meta=None, ignore_blank=False, exclude_ids=None, a_labels=None,
-                     filter_reports=True, test_only=False):
+                     filter_reports=True, test_only=False,training_ratio = 1.0):
         datasets = {}
         if cache_data is not None:
             cache = True
@@ -86,7 +86,7 @@ class Data:
                 datasets['train'] = MIMICCXRData(path, section=section, split='train',
                                                  target_transform=target_transform, cache_image=cache, cache_text=cache,
                                                  multi_image=multi_image, img_mode=img_mode, img_augment=img_augment,
-                                                 dump_dir=train_dump, filter_reports=filter_reports)
+                                                 dump_dir=train_dump, filter_reports=filter_reports,training_ratio = training_ratio)
             target_transform = MIMICCXRData.get_target_transform(word_indexes, 'validation', sentsplitter, tokenizer,
                                                                  textfilter, tokenfilter, max_sent, max_word)
             datasets['validation'] = MIMICCXRData(path, section=section, split='val',
@@ -108,7 +108,7 @@ class Data:
                 datasets['train'] = IUXRAYData(path, section=section, split='train',
                                                  target_transform=target_transform, cache_image=cache, cache_text=cache,
                                                  multi_image=multi_image, img_mode=img_mode, img_augment=img_augment,
-                                                 dump_dir=train_dump, filter_reports=filter_reports)
+                                                 dump_dir=train_dump, filter_reports=filter_reports,training_ratio = training_ratio)
             target_transform = IUXRAYData.get_target_transform(word_indexes, 'validation', sentsplitter, tokenizer,
                                                                textfilter, tokenfilter, max_sent, max_word)
             datasets['validation'] = IUXRAYData(path, section=section, split='val',

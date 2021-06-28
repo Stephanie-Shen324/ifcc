@@ -7,6 +7,7 @@ from clinicgen.models.m2transformer import M2Transformer
 from clinicgen.models.sat import ShowAttendAndTell
 from clinicgen.models.tienet import TieNet
 from clinicgen.models.transformer import TransformerCaptioner, TransformerSimpleCaptioner
+# from clinicgen.models.dwem2transformer import DWEM2Transformer
 from clinicgen.nli import SimpleNLI
 
 
@@ -17,7 +18,7 @@ class Models:
                   view_position=False, image_finetune_epoch=None, rl_opts=None, word_idxs=None, device='gpu',
                   parallel_sent=True, cnnrnnrnn_topic_state=False, cnnrnnrnn_simple_proj=False, sat_lstm_dim=1000,
                   trans_image_pe=True, trans_layers=6, trans_enc_layers=None, trans_layer_norm=False, m2_memory=40,
-                  tienet_labels=None, verbose=False):
+                  tienet_labels=None, verbose=False,cls_pretrained=None,kg_dir=None,feed_mode='both'):
         if trans_enc_layers is None:
             trans_enc_layers = trans_layers
         if name == 'cnnrnnrnn':
@@ -40,7 +41,16 @@ class Models:
                                   num_dec_layers=trans_layers, num_memory=m2_memory, teacher_forcing=teacher_forcing,
                                   image_model=image_model, image_pretrained=image_pretrained,
                                   finetune_image=finetune_image, image_finetune_epoch=image_finetune_epoch,
-                                  rl_opts=rl_opts, word_idxs=word_idxs, device=device, verbose=verbose)
+                                  rl_opts=rl_opts, word_idxs=word_idxs, device=device, verbose=verbose,
+                                  cls_pretrained=cls_pretrained,kg_dir=kg_dir,feed_mode=feed_mode)#,feed_mode = feed_mode)
+        # elif name == 'dwem2trans':
+        #     model = DWEM2Transformer(embeddings, feat_dim=hidden_size, max_word=max_word, multi_image=multi_image,
+        #                           layer_norm=trans_layer_norm, num_enc_layers=trans_enc_layers,
+        #                           num_dec_layers=trans_layers, num_memory=m2_memory, teacher_forcing=teacher_forcing,
+        #                           image_model=image_model, image_pretrained=image_pretrained,
+        #                           finetune_image=finetune_image, image_finetune_epoch=image_finetune_epoch,
+        #                           rl_opts=rl_opts, word_idxs=word_idxs, device=device, verbose=verbose,
+        #                           cls_pretrained=cls_pretrained, kg_dir=kg_dir,feed_mode=feed_mode)
         elif name == 'sat':
             model = ShowAttendAndTell(embeddings, context_dim=hidden_size, lstm_dim=sat_lstm_dim,  max_word=max_word,
                                       multi_image=multi_image, multi_merge=multi_merge, teacher_forcing=teacher_forcing,

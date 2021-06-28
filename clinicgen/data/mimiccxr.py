@@ -37,7 +37,7 @@ class MIMICCXRData(_RadiologyReportData):
 
     def __init__(self, root, section='findings', split=None, target_transform=None, cache_image=False, cache_text=True,
                  multi_image=1, img_mode='center', img_augment=False, single_image_doc=False, dump_dir=None,
-                 filter_reports=True):
+                 filter_reports=True,training_ratio = 1.0):
         if not cache_text:
             raise ValueError('MIMIC-CXR data only supports cached texts')
         super().__init__(root, section, split, cache_image, cache_text, multi_image=multi_image,
@@ -45,6 +45,9 @@ class MIMICCXRData(_RadiologyReportData):
         pre_transform, self.transform = MIMICCXRData.get_transform(cache_image, img_mode, img_augment)
         self.target_transform = target_transform
         self.chexpert_labels_path = os.path.join(root, 'mimic-cxr-jpg', '2.0.0', self.CHEXPERT_PATH)
+        self.training_ratio = training_ratio
+        assert 0.0 <= self.training_ratio <= 1.0
+
 
         annotation = json.loads(open('/content/mimic_cxr/annotation.json', 'r').read())
         texts_train = annotation['train']
@@ -64,6 +67,7 @@ class MIMICCXRData(_RadiologyReportData):
             if self.load():
                 print('Loaded data dump from %s (%.2fs)' % (dump_dir, time.time() - t))
                 self.pre_processes(filter_reports)
+                self.apply_training_ratio(split)
                 return
         # assume done
         #########################
@@ -119,6 +123,22 @@ class MIMICCXRData(_RadiologyReportData):
         if dump_dir is not None:
             self.dump()
         self.pre_processes(filter_reports)
+
+
+    def apply_training_ratio(self, split):
+            if split == 'train':
+                t = time.time()
+                total = len(self.samples)
+                print('{} set: applying training_ratio {}  ... '.format(split,self.training_ratio), end='', flush=True)
+                select = int(total // (1/self.training_ratio)) + 1
+
+                self.ids = self.ids[:select]
+                self.doc_ids = self.doc_ids[:select]
+                self.image_ids = self.image_ids[:select]
+                self.samples = self.samples[:select]
+                self.targets = self.targets[:select]
+
+                print('done %d->%d (%.2fs)' % (total, select, time.time() - t), flush=True)
 
     def __getitem__(self, index):
         rid, sample, target, _ = super().__getitem__(index)
