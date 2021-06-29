@@ -93,7 +93,7 @@ changes to 'run_iu_xray.sh': \
 --kg_option 'vsegcn' \
 
 ### KG on MIMIC
-### KG(VSEGCN)
+#### VSEGCN's KG
 link = '1_5DhLPDq7bSOgLWLPO7BM-gUySqpiVCK' \
 downloaded = drive.CreateFile({'id':link}) \
 downloaded.GetContentFile('mimic_gcnclassifier_v1_ones3_t0v1t2_lr1e-6_24052021_e10.pth') \
