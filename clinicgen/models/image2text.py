@@ -83,9 +83,9 @@ class _Image2Text(torch.nn.Module):
         max_len = int(mask.max().cpu())
         return targ[:, :, :max_len]
 
-    def _decode_words_beam(self, words, states, beam_size, allow_stop=True, recover_words=None, diversity_rate=0.0):
+    def _decode_words_beam(self, words, states, beam_size, allow_stop=True, recover_words=None, diversity_rate=0.0, require_attention_score=False):
         if beam_size == 1:
-            return self._decode_words_greedy(words, states, allow_stop=allow_stop, recover_words=recover_words)
+            return self._decode_words_greedy(words, states, allow_stop=allow_stop, recover_words=recover_words, require_attention_score=require_attention_score)
         elif diversity_rate > 0.0:
             return self._decode_words_diverse(words, states, beam_size, recover_words, diversity_rate)
 
@@ -329,11 +329,12 @@ class _Image2Text(torch.nn.Module):
                     beam_words[m, k] = np.array(beam_buffer[m, k - rs_len], dtype='long')
         return torch.tensor(beam_words), logs
 
-    def _decode_words_greedy(self, words, states, allow_stop=True, recover_words=None):
+    def _decode_words_greedy(self, words, states, allow_stop=True, recover_words=None, require_attention_score=False):
         logs = {'word': []} if recover_words is not None else None
         words = words[:, 0]
         stop_states = np.ones(words.shape[0], dtype='uint8')
         greedy_buffer = torch.full((words.shape[0], 1, self.max_word), PretrainedEmbeddings.INDEX_PAD, dtype=torch.long)
+        atten_score_buffer = torch.full((words.shape[0], 1, self.max_word), PretrainedEmbeddings.INDEX_PAD, dtype=torch.float) # attention score
 
         # Decodes words
         for j in range(self.max_word):
@@ -342,7 +343,11 @@ class _Image2Text(torch.nn.Module):
                 greedy_buffer[:, 0, j] = torch.full((words.shape[0],), PretrainedEmbeddings.INDEX_PAD, dtype=torch.long)
             else:
                 # proc_word should be overridden in subclasses
-                p, states = self.proc_word(words, states)
+                # require attention score
+                if require_attention_score:
+                    p, states, atten_score = self.proc_word(words, states, require_attention_score=require_attention_score)
+                else:
+                    p, states = self.proc_word(words, states)
                 # p is a pre-softmax word distribution
                 p = -log_softmax(p, dim=-1).detach()
                 # Pick greedy words
@@ -351,9 +356,10 @@ class _Image2Text(torch.nn.Module):
                 words_np = words_cpu.numpy()
                 stop_states *= (words_np != PretrainedEmbeddings.INDEX_EOS).astype('uint8')
                 greedy_buffer[:, 0, j] = words_cpu
+                atten_score_buffer[:, 0, j] = atten_score.cpu()
                 if recover_words is not None:
                     logs['word'].append(recover_words.array(words_np))
-        return greedy_buffer, logs
+        return greedy_buffer, logs, atten_score_buffer
 
     def _init_multi_image(self, image_dim, visual_num, rnn_dim):
         if self.multi_image > 1 and self.multi_merge == self.MULTI_MERGE_ATT:

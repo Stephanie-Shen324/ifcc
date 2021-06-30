@@ -622,8 +622,9 @@ class GenEval:
         scores = [np.mean(score) for score in scores]
         return scores, scores_detailed
 
-    def generate_and_eval(self, data_loader, progress_name=None, batch=False):
+    def generate_and_eval(self, data_loader, progress_name=None, batch=False, require_attention_score=False):
         # Evaluate generate outputs
+        atten_score=None
         self.model.eval()
         with torch.no_grad():
             if progress_name is not None:
@@ -632,7 +633,7 @@ class GenEval:
                 eval_interval = int(len(data_loader.dataset.samples) / 10)
             else:
                 pbar, eval_interval = None, None
-            report_ids, reports, hypos, refs, tqdm_interval = [], [], {}, {}, 0
+            report_ids, reports, hypos, refs, atten_score_dict, tqdm_interval = [], [], {}, {}, {}, 0
             for rids, inp, targ, vp in data_loader:
                 inp = data_cuda(inp, device=self.device, non_blocking=data_loader.pin_memory)
                 meta = (vp,)
@@ -646,20 +647,30 @@ class GenEval:
                         words.append(w.unsqueeze(dim=1))
                     stops = self.model.dummy_stops(words[0])
                 else:
-                    stops, words, _ = self.model.decode_beam(encoded_data, self.beam_size, recover_words=rec_words,
-                                                             diversity_rate=self.beam_diversity)
+                    if require_attention_score:
+                        self.beam_size = 1
+                        stops, words, _, atten_score = self.model.decode_beam(encoded_data, self.beam_size, recover_words=rec_words,
+                                                                 diversity_rate=self.beam_diversity,
+                                                                 require_attention_score=require_attention_score)
+                        atten_score=atten_score.squeeze(dim=1).tolist()
+                    else:
+                        stops, words, _ = self.model.decode_beam(encoded_data, self.beam_size, recover_words=rec_words,
+                                                                 diversity_rate=self.beam_diversity)
+
                 # Output all beams if diversity rate is set
                 idxs = list(range(self.beam_size)) if self.beam_diversity > 0.0 or self.nucleus_p is not None else [0]
                 for idx in idxs:
                     widxs = words[:, :, idx] if self.nucleus_p is None else words[idx]
                     reps, _ = self.recover_words(stops, widxs)
-                    for rid, reference, candidate in zip(rids, targ, reps):
+                    for rid, reference, candidate, att in zip(rids, targ, reps, atten_score):
                         # Recovered Samples
                         if self.beam_diversity > 0.0 or self.nucleus_p is not None:
                             rid += '__{0}'.format(idx)
                         report_ids.append(rid)
                         reports.append(candidate.replace('\n', ' ' + self.LINEBREAK + ' '))
                         hypos[rid] = [candidate.replace('\n', ' ')]
+                        report_length = len(hypos[rid][0].split())
+                        atten_score_dict[rid] = att[:report_length]
                         if data_loader.dataset.multi_instance:
                             reference = reference.split(ToTokenizedTexts.INSTANCE_BREAK)
                         else:
@@ -688,8 +699,10 @@ class GenEval:
                                                       batch_size=self.EVAL_SIZE, progress_name=progress_name)
         else:
             scores, scores_detailed = self.eval(report_ids, refs, hypos, tfidf_vectorizer)
+
         return {self.EVAL_ID: report_ids, self.EVAL_SCORE: scores, self.EVAL_SCORE_DETAILED: scores_detailed,
-                self.EVAL_REPORT: reports},refs, hypos
+                self.EVAL_REPORT: reports},refs, hypos, atten_score_dict
+
 
     def load_and_eval(self, data_loader, load_path, batch=False):
         # Load reference data and evaluate generated outputs

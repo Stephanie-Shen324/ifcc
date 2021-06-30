@@ -18,7 +18,7 @@ from torch.utils.tensorboard import SummaryWriter
 class EpochLog:
     @classmethod
     def log_datasets(cls, logger, pbar_vals, epoch, data_n, epoch_loss, val_loader, test_loader, progress=False,
-                     save=True):
+                     save=True, require_attention_score=False):
         if epoch_loss is not None:
             logger.log_train(epoch, data_n, epoch_loss)
         results = {}
@@ -27,7 +27,7 @@ class EpochLog:
             logger.evaluator.cuda()
         for split, data_loader in [('val', val_loader), ('test', test_loader)]:
             prog_name = split if progress else None
-            results[split], refs, hypos = logger.evaluator.generate_and_eval(data_loader, prog_name)
+            results[split], refs, hypos, atten_score = logger.evaluator.generate_and_eval(data_loader, prog_name, require_attention_score=require_attention_score)
             metric_idxs = logger.pbar_indexes()
             scores = ','.join(['%.2f' % results[split][GenEval.EVAL_SCORE][i] for i in metric_idxs])
             pbar_vals['{0}_scores'.format(split)] = scores
@@ -47,6 +47,12 @@ class EpochLog:
                 json_hypos = json.dumps(hypos)
                 with open(os.path.join(logger.state, 'results', '{}_generate_e{}.json'.format(split, epoch)), 'w') as json_file:
                     json_file.write(json_hypos)
+                # attention score
+                if require_attention_score:
+                    json_atten_score = json.dumps(atten_score)
+                    with open(os.path.join(logger.state, 'results', '{}_attention_score_e{}.json'.format(split, epoch)),
+                              'w') as json_file:
+                        json_file.write(json_atten_score)
             except:
                 pass
         logger.evaluator.cleanup()

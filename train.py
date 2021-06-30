@@ -194,7 +194,7 @@ def main(args):
                     scheduler_tfr.step()
                     print('scheduler_tfr lr----', scheduler_tfr.get_last_lr()[0])
                 pbar_vals = EpochLog.log_datasets(logger, pbar_vals, epoch, data_n, epoch_loss, val_loader, test_loader,
-                                                  save=args.log_models, progress=True)
+                                                  save=args.log_models, progress=True, require_attention_score=args.output_attention_score)
                 logger.save_current_model(epoch)
         except BaseException:
             print('Unexpected exception: {0}'.format(traceback.format_exc()))
@@ -255,6 +255,8 @@ def parse_args():
     parser.add_argument('--max-word', type=int, default=128, help='Max word num')
     # support dwe m2
     parser.add_argument('--model', type=str, default='m2trans', choices=['cnnrnnrnn', 'kwl', 'm2trans', 'sat', 'tienet', 'trans', 'trans-s'])#,'dwem2trans'])
+    parser.add_argument('--output-attention-score', default=False, action='store_true',
+                        help='if we need output attention score for visualization')
     parser.add_argument('--model-save', type=str, default=None, help='A model save path')
     parser.add_argument('--multi-image', type=int, default=2, help='Multi image number')
     parser.add_argument('--multi-merge', type=str, default='max', choices=['att', 'max'], help='A merge method for multi images')

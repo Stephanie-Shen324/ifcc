@@ -93,15 +93,27 @@ class _TransformerCaptioner(_Image2Text):
                                                       ids=ids)
         return loss_acc, rewards
 
-    def decode_beam(self, encoded_data, beam_size, allow_stop=True, recover_words=None, diversity_rate=0.0):
+    def decode_beam(self, encoded_data, beam_size, allow_stop=True, recover_words=None, diversity_rate=0.0, require_attention_score=False):
         v = encoded_data
         # Initialize word process states
         w = v.new_full((v.shape[0], 1), PretrainedEmbeddings.INDEX_START, dtype=torch.long)
         states = (torch.tensor([0]), None, v)
         # Decode words
-        beam_words, logs = self._decode_words_beam(w, states, beam_size, allow_stop, recover_words, diversity_rate)
-        dummy_stops = self.dummy_stops(beam_words)
-        return dummy_stops, beam_words.unsqueeze(dim=1), logs
+
+        # require attention score
+        if require_attention_score:
+            beam_words, logs, atten_score = self._decode_words_beam(w, states, beam_size, allow_stop, recover_words, diversity_rate,
+                                                       require_attention_score=require_attention_score)
+            dummy_stops = self.dummy_stops(beam_words)
+            return dummy_stops, beam_words.unsqueeze(dim=1), logs, atten_score
+
+        else:
+            beam_words, logs = self._decode_words_beam(w, states, beam_size, allow_stop, recover_words, diversity_rate,
+                                                       require_attention_score=require_attention_score)
+            dummy_stops = self.dummy_stops(beam_words)
+            return dummy_stops, beam_words.unsqueeze(dim=1), logs
+
+
 
     def decode_teacher_forcing(self, y, v):
         # Masks
@@ -162,7 +174,7 @@ class _TransformerCaptioner(_Image2Text):
     def proc_word_sequence(self, wt, v, mask=None):
         raise NotImplementedError()
 
-    def proc_word(self, w, states):
+    def proc_word(self, w, states, require_attention_score=False):
         c, wt, v = states
         if len(w.shape) == 1:
             w = w.unsqueeze(dim=-1)
@@ -170,12 +182,24 @@ class _TransformerCaptioner(_Image2Text):
             wt = torch.cat([wt, w], dim=1)
         else:
             wt = w
-        d = self.proc_word_sequence(wt, v)
-        d = d[c[0]]
-        # Word generation probability (NxW), note that softmax is not applied here.
-        p = self.word_dense(d)
-        c[0] += 1
-        return p, (c, wt, v)
+
+        # require attention score
+        if require_attention_score:
+            d, atten_score = self.proc_word_sequence(wt, v, require_attention_score=require_attention_score)
+            d = d[c[0]]
+            atten_score = atten_score[c[0]]
+            # Word generation probability (NxW), note that softmax is not applied here.
+            p = self.word_dense(d)
+            c[0] += 1
+            return p, (c, wt, v), atten_score
+        else:
+            d = self.proc_word_sequence(wt, v)
+            d = d[c[0]]
+            # Word generation probability (NxW), note that softmax is not applied here.
+            p = self.word_dense(d)
+            c[0] += 1
+            return p, (c, wt, v)
+
 
     def sample(self, encoded_data, nucleus_p=None):
         self.eval()
