@@ -6,7 +6,7 @@ import torch
 import os
 from torch import sigmoid
 from torch.nn import Dropout, LayerNorm, Linear, Module
-from torch.nn.functional import dropout, linear, relu, softmax
+from torch.nn.functional import dropout, linear, relu, softmax, pad
 from torch.nn.init import normal_
 from torch.nn.modules.activation import MultiheadAttention
 from torch.nn.modules.transformer import _get_activation_fn, TransformerDecoderLayer, TransformerDecoder, TransformerEncoder
@@ -58,8 +58,7 @@ class MeshedTransformerDecoder(TransformerDecoder):
                 output = mod(output, memory, tgt_mask=tgt_mask,
                              memory_mask=memory_mask,
                              tgt_key_padding_mask=tgt_key_padding_mask,
-                             memory_key_padding_mask=memory_key_padding_mask,
-                             require_attention_score=require_attention_score)
+                             memory_key_padding_mask=memory_key_padding_mask)
 
             return output
 
@@ -71,7 +70,7 @@ class TransformerAndAttention(MultiheadAttention):
 
     def forward(self, query, key, value, key_padding_mask=None,
                 need_weights=True, attn_mask=None):
-        if not self._qkv_same_embed_dim:
+        if hasattr(self, '_qkv_same_embed_dim') and self._qkv_same_embed_dim is False:
             return self.multi_head_attention_forward(
                 query, key, value, self.embed_dim, self.num_heads,
                 self.in_proj_weight, self.in_proj_bias,
@@ -83,6 +82,11 @@ class TransformerAndAttention(MultiheadAttention):
                 q_proj_weight=self.q_proj_weight, k_proj_weight=self.k_proj_weight,
                 v_proj_weight=self.v_proj_weight)
         else:
+            if not hasattr(self, '_qkv_same_embed_dim'):
+                warnings.warn('A new version of MultiheadAttention module has been implemented. \
+                    Please re-train your model with the new module',
+                              UserWarning)
+
             return self.multi_head_attention_forward(
                 query, key, value, self.embed_dim, self.num_heads,
                 self.in_proj_weight, self.in_proj_bias,
@@ -92,7 +96,7 @@ class TransformerAndAttention(MultiheadAttention):
                 key_padding_mask=key_padding_mask, need_weights=need_weights,
                 attn_mask=attn_mask)
 
-    def multi_head_attention_forward(query, key, value, embed_dim_to_check, num_heads, in_proj_weight, in_proj_bias, bias_k,
+    def multi_head_attention_forward(self, query, key, value, embed_dim_to_check, num_heads, in_proj_weight, in_proj_bias, bias_k,
                                      bias_v, add_zero_attn, dropout_p, out_proj_weight, out_proj_bias, training=True,
                                      key_padding_mask=None, need_weights=True, attn_mask=None, use_separate_proj_weight=False,
                                      q_proj_weight=None, k_proj_weight=None, v_proj_weight=None, static_k=None, static_v=None):
@@ -100,16 +104,16 @@ class TransformerAndAttention(MultiheadAttention):
         if not torch.jit.is_scripting():
             tens_ops = (query, key, value, in_proj_weight, in_proj_bias, bias_k, bias_v,
                         out_proj_weight, out_proj_bias)
-            if any([type(t) is not Tensor for t in tens_ops]) and has_torch_function(tens_ops):
-                return handle_torch_function(
-                    multi_head_attention_forward, tens_ops, query, key, value,
-                    embed_dim_to_check, num_heads, in_proj_weight, in_proj_bias,
-                    bias_k, bias_v, add_zero_attn, dropout_p, out_proj_weight,
-                    out_proj_bias, training=training, key_padding_mask=key_padding_mask,
-                    need_weights=need_weights, attn_mask=attn_mask,
-                    use_separate_proj_weight=use_separate_proj_weight,
-                    q_proj_weight=q_proj_weight, k_proj_weight=k_proj_weight,
-                    v_proj_weight=v_proj_weight, static_k=static_k, static_v=static_v)
+            # if any([type(t) is not Tensor for t in tens_ops]) and has_torch_function(tens_ops):
+            #     return handle_torch_function(
+            #         multi_head_attention_forward, tens_ops, query, key, value,
+            #         embed_dim_to_check, num_heads, in_proj_weight, in_proj_bias,
+            #         bias_k, bias_v, add_zero_attn, dropout_p, out_proj_weight,
+            #         out_proj_bias, training=training, key_padding_mask=key_padding_mask,
+            #         need_weights=need_weights, attn_mask=attn_mask,
+            #         use_separate_proj_weight=use_separate_proj_weight,
+            #         q_proj_weight=q_proj_weight, k_proj_weight=k_proj_weight,
+            #         v_proj_weight=v_proj_weight, static_k=static_k, static_v=static_v)
         tgt_len, bsz, embed_dim = query.size()
         assert embed_dim == embed_dim_to_check
         # allow MHA to have different sizes for the feature dimension
