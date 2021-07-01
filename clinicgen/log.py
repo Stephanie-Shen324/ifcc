@@ -49,7 +49,7 @@ class EpochLog:
                     json_file.write(json_hypos)
                 # attention score
                 if require_attention_score:
-                    json_atten_score = json.dumps(atten_score)
+                    json_atten_score = json.dumps(str(atten_score))
                     with open(os.path.join(logger.state, 'results', '{}_attention_score_e{}.json'.format(split, epoch)),
                               'w') as json_file:
                         json_file.write(json_atten_score)

@@ -80,6 +80,72 @@ class RecoverWords:
     def array(self, idxs):
         return list(map(lambda idx: self.index_words[idx], idxs))
 
+class RecoverWordsAndAttention:
+    def __init__(self, word_indexes):
+        self.index_words = {}
+        for word, index in word_indexes.items():
+            self.index_words[index] = word
+
+    def __call__(self, *inputs, normalized=False):
+        reports = []
+        atten_scores = []
+
+        if len(inputs) == 3:
+            stops, samples, atten_score = inputs
+            if not normalized:
+                stops = sigmoid(stops)
+            stops = stops.detach().cpu().numpy()
+            samples = samples.detach().cpu().numpy()
+            atten_score = atten_score.detach().cpu().numpy()
+            masks = np.zeros((samples.shape[0], samples.shape[1], samples.shape[2]), dtype='float')
+
+            for i in range(stops.shape[0]):
+                stop_sent = False
+                sentences = []
+                scores2 = []
+                for j in range(stops.shape[1]):
+                    if not stop_sent:
+                        if j > 0 and stops[i][j] >= 0.5:
+                            stop_sent = True
+                        else:
+                            stop_word = False
+                            words = []
+                            scores = []
+                            for k in range(samples.shape[2]):
+                                if not stop_word:
+                                    index = samples[i][j][k]
+                                    masks[i][j][k] = 1.0
+                                    if index == PretrainedEmbeddings.INDEX_EOS:
+                                        stop_word = True
+                                    elif index != PretrainedEmbeddings.INDEX_PAD:
+                                        words.append(self.index_words[index])
+                                        scores.append(atten_score[i][j][k])
+                            sentences.append(' '.join(words))
+                            scores2.append(scores)
+                reports.append('\n'.join(sentences))
+                atten_scores.append(scores)
+
+        else:
+            samples = inputs[0]
+            samples = samples.detach().cpu().numpy()
+            masks = np.zeros((samples.shape[0], samples.shape[1]), dtype='float')
+
+            for i in range(samples.shape[0]):
+                stop_word = False
+                words = []
+                for k in range(samples.shape[1]):
+                    if not stop_word:
+                        index = samples[i][k]
+                        masks[i][k] = 1.0
+                        if index == PretrainedEmbeddings.INDEX_EOS:
+                            stop_word = True
+                        elif index != PretrainedEmbeddings.INDEX_PAD:
+                            words.append(self.index_words[index])
+                reports.append(' '.join(words))
+        return reports, masks, atten_scores
+
+    def array(self, idxs):
+        return list(map(lambda idx: self.index_words[idx], idxs))
 
 class DataParallelSwitch(DataParallel):
     def __init__(self, module, device_ids=None, output_device=None, dim=0):

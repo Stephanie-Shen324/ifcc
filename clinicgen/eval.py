@@ -14,7 +14,7 @@ from stanza import Pipeline
 from tqdm import tqdm
 from clinicgen.data.image2text import ToTokenizedTexts
 from clinicgen.nli import BERTScorer, SimpleNLI
-from clinicgen.utils import data_cuda, RecoverWords
+from clinicgen.utils import data_cuda, RecoverWords, RecoverWordsAndAttention
 from clinicgen.external.bleu.bleu import Bleu
 from clinicgen.external.cider.cider import Cider, CiderScorer
 from clinicgen.external.rouge.rouge import Rouge
@@ -283,6 +283,7 @@ class GenEval:
                  sentsplitter='nltk', verbose=False):
         self.model = model
         self.recover_words = RecoverWords(word_indexes)
+        self.recover_words_atten = RecoverWordsAndAttention(word_indexes)
         self.beam_size = beam_size
         self.bleu = bleu
         self.rouge = rouge
@@ -624,7 +625,6 @@ class GenEval:
 
     def generate_and_eval(self, data_loader, progress_name=None, batch=False, require_attention_score=False):
         # Evaluate generate outputs
-        atten_score=None
         self.model.eval()
         with torch.no_grad():
             if progress_name is not None:
@@ -652,7 +652,6 @@ class GenEval:
                         stops, words, _, atten_score = self.model.decode_beam(encoded_data, self.beam_size, recover_words=rec_words,
                                                                  diversity_rate=self.beam_diversity,
                                                                  require_attention_score=require_attention_score)
-                        atten_score=atten_score.squeeze(dim=1).tolist()
                     else:
                         stops, words, _ = self.model.decode_beam(encoded_data, self.beam_size, recover_words=rec_words,
                                                                  diversity_rate=self.beam_diversity)
@@ -662,7 +661,16 @@ class GenEval:
                 for idx in idxs:
                     widxs = words[:, :, idx] if self.nucleus_p is None else words[idx]
                     reps, _ = self.recover_words(stops, widxs)
-                    for rid, reference, candidate, att in zip(rids, targ, reps, atten_score):
+                    if require_attention_score:
+                        reps, _, atten_scores = self.recover_words_atten(stops, widxs, atten_score)
+                    else:
+                        reps, _ = self.recover_words(stops, widxs)
+                        atten_scores = [[0] for i in range(len(reps))]
+                    for rid, reference, candidate, att in zip(rids, targ, reps, atten_scores):
+                        try:
+                            rid = str(rid.numpy())
+                        except:
+                            pass
                         # Recovered Samples
                         if self.beam_diversity > 0.0 or self.nucleus_p is not None:
                             rid += '__{0}'.format(idx)
